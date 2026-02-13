@@ -12,11 +12,12 @@ try {
     console.log('Will fall back to curl for all requests.');
 }
 
-const port = 3000;
+const port = process.env.PORT || 3000;
+const host = '0.0.0.0';
 
 const server = http.createServer(function(req, res) {
     if (req.url.startsWith('/api/scrape')) {
-        scrapeWikipedia(req, res);
+        scrapeWebsite(req, res);
     } else if (req.url.startsWith('/api/preview')) {
         previewPage(req, res);
     } else if (req.url.startsWith('/api/follow-redirect')) {
@@ -52,11 +53,18 @@ const server = http.createServer(function(req, res) {
     }
 });
 
-server.listen(port, function(error) {
+function getBaseUrl(req) {
+    const protocol = req.headers['x-forwarded-proto'] || 'http';
+    const hostname = req.headers.host;
+    return `${protocol}://${hostname}`;
+}
+
+server.listen(port, host, function(error) {
     if (error) {
         console.log('Something went wrong', error);
     } else {
-        console.log('Server is listening on port ' + port);
+        console.log('Server is listening on ' + host + ':' + port);
+        console.log('Environment: ' + (process.env.PORT ? 'Production (Render)' : 'Local Development'));
         console.log('Open http://localhost:' + port + ' in your browser');
         if (puppeteer) {
             console.log('Puppeteer available - will use browser automation for protected sites');
@@ -335,7 +343,7 @@ function filterUnwantedLinks(links) {
 }
 
 async function followRedirect(req, res) {
-    const urlParams = new URL(req.url, `http://localhost:${port}`);
+    const urlParams = new URL(req.url, getBaseUrl(req));
     const url = urlParams.searchParams.get('url');
     
     if (!url) {
@@ -416,7 +424,7 @@ function extractOpenGraphData($) {
 }
 
 async function analyzeJob(req, res) {
-    const urlParams = new URL(req.url, `http://localhost:${port}`);
+    const urlParams = new URL(req.url, getBaseUrl(req));
     const url = urlParams.searchParams.get('url');
     const skillsParam = urlParams.searchParams.get('skills');
     
@@ -657,116 +665,7 @@ function categorizeLinks(links) {
     return categories;
 }
 
-async function previewPage(req, res) {
-    const urlParams = new URL(req.url, `http://localhost:${port}`);
-    const url = urlParams.searchParams.get('url');
-    
-    if (!url) {
-        res.writeHead(400, {'Content-Type': 'text/html'});
-        res.end('<h1>Error: No URL provided</h1>');
-        return;
-    }
-    
-    console.log('[PREVIEW] Starting preview for:', url);
-    
-    // Set a timeout for the entire response
-    const timeoutId = setTimeout(() => {
-        console.error('[PREVIEW] Request timed out after 20 seconds');
-        if (!res.headersSent) {
-            res.writeHead(200, {'Content-Type': 'text/html'});
-            res.end(`
-                <!DOCTYPE html>
-                <html>
-                <head><meta charset="UTF-8"></head>
-                <body style="font-family: Arial; padding: 40px; text-align: center;">
-                    <h1 style="color: #f44336;">Preview Timeout</h1>
-                    <p>The preview took too long to load.</p>
-                    <p><a href="${url}" target="_blank">Open original page →</a></p>
-                </body>
-                </html>
-            `);
-        }
-    }, 20000);
-    
-    try {
-        let html;
-        
-        // Use Puppeteer for complex sites that need JavaScript
-        if (puppeteer && needsBrowserAutomation(url)) {
-            console.log('[PREVIEW] Using Puppeteer for JavaScript-heavy site');
-            html = await scrapeWithPuppeteer(url);
-        } else {
-            console.log('[PREVIEW] Using curl for simple site');
-            html = await scrapeWithCurl(url);
-        }
-        
-        clearTimeout(timeoutId);
-        
-        console.log('[PREVIEW] HTML fetched, length:', html.length);
-        
-        if (!res.headersSent) {
-            res.writeHead(200, {'Content-Type': 'text/html'});
-            res.end(html);
-        }
-        
-    } catch (error) {
-        clearTimeout(timeoutId);
-        console.error('[PREVIEW] Error:', error.message);
-        
-        if (!res.headersSent) {
-            res.writeHead(200, {'Content-Type': 'text/html'});
-            res.end(`
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <meta charset="UTF-8">
-                    <style>
-                        body { 
-                            font-family: Arial, sans-serif; 
-                            padding: 40px; 
-                            text-align: center;
-                            background-color: #f9f9f9;
-                        }
-                        h1 { color: #f44336; }
-                        .error-box {
-                            background-color: white;
-                            border: 2px solid #f44336;
-                            border-radius: 8px;
-                            padding: 30px;
-                            max-width: 600px;
-                            margin: 0 auto;
-                        }
-                        a {
-                            color: #2196F3;
-                            text-decoration: none;
-                            font-weight: bold;
-                        }
-                        .error-details {
-                            background-color: #f5f5f5;
-                            padding: 10px;
-                            border-radius: 4px;
-                            margin: 20px 0;
-                            font-family: monospace;
-                            font-size: 12px;
-                            text-align: left;
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class="error-box">
-                        <h1>Preview Error</h1>
-                        <p>Could not load preview for this page.</p>
-                        <div class="error-details">${error.message}</div>
-                        <p><a href="${url}" target="_blank">Open original page in new tab →</a></p>
-                    </div>
-                </body>
-                </html>
-            `);
-        }
-    }
-}
-
-async function scrapeWikipedia(req, res) {
+async function scrapeWebsite(req, res) {
     console.log('Starting scraper...');
     
     const urlParams = new URL(req.url, `http://localhost:${port}`);
