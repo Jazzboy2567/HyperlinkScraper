@@ -15,7 +15,14 @@ try {
 const port = process.env.PORT || 3000;
 const host = '0.0.0.0';
 
+
+
 const server = http.createServer(function(req, res) {
+    if (req.url === '/health' || req.url === '/ping') {
+        res.writeHead(200, {'Content-Type': 'text/plain'});
+        res.end('OK');
+        return;
+    }
     if (req.url.startsWith('/api/scrape')) {
         scrapeWebsite(req, res);
     } else if (req.url.startsWith('/api/preview')) {
@@ -65,7 +72,9 @@ server.listen(port, host, function(error) {
     } else {
         console.log('Server is listening on ' + host + ':' + port);
         console.log('Environment: ' + (process.env.PORT ? 'Production (Render)' : 'Local Development'));
-        console.log('Open http://localhost:' + port + ' in your browser');
+        if (!process.env.PORT) {
+            console.log('Open http://localhost:' + port + ' in your browser');
+        }
         if (puppeteer) {
             console.log('Puppeteer available - will use browser automation for protected sites');
         } else {
