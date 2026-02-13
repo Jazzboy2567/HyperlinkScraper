@@ -23,6 +23,18 @@ const server = http.createServer(function(req, res) {
         followRedirect(req, res);
     } else if (req.url.startsWith('/api/analyze-job')) {
         analyzeJob(req, res);
+    } else if (req.url === '/api/test') {
+        // Simple test endpoint for n8n
+        res.writeHead(200, {'Content-Type': 'application/json'});
+        res.end(JSON.stringify({ 
+            status: 'ok', 
+            message: 'Scraper API is running!',
+            endpoints: {
+                scrape: '/api/scrape?url=YOUR_URL',
+                analyze: '/api/analyze-job?url=YOUR_URL&skills=python,javascript',
+                follow: '/api/follow-redirect?url=YOUR_URL'
+            }
+        }));
     } else if (req.url === '/' || req.url === '/index.html') {
         res.writeHead(200, {'Content-Type': 'text/html'});
         fs.readFile('index.html', function(error, data) {
@@ -365,6 +377,44 @@ async function followRedirect(req, res) {
     }
 }
 
+function extractOpenGraphData($) {
+    const ogData = {};
+    
+    // Extract Open Graph meta tags
+    $('meta[property^="og:"]').each((i, elem) => {
+        const property = $(elem).attr('property');
+        const content = $(elem).attr('content');
+        if (property && content) {
+            const key = property.replace('og:', '');
+            ogData[key] = content;
+        }
+    });
+    
+    // Extract Twitter Card meta tags as fallback
+    if (!ogData.title) {
+        const twitterTitle = $('meta[name="twitter:title"]').attr('content');
+        if (twitterTitle) ogData.title = twitterTitle;
+    }
+    if (!ogData.description) {
+        const twitterDesc = $('meta[name="twitter:description"]').attr('content');
+        if (twitterDesc) ogData.description = twitterDesc;
+    }
+    if (!ogData.image) {
+        const twitterImage = $('meta[name="twitter:image"]').attr('content');
+        if (twitterImage) ogData.image = twitterImage;
+    }
+    
+    // Fallback to regular meta tags
+    if (!ogData.title) {
+        ogData.title = $('title').first().text() || $('h1').first().text();
+    }
+    if (!ogData.description) {
+        ogData.description = $('meta[name="description"]').attr('content');
+    }
+    
+    return ogData;
+}
+
 async function analyzeJob(req, res) {
     const urlParams = new URL(req.url, `http://localhost:${port}`);
     const url = urlParams.searchParams.get('url');
@@ -390,6 +440,9 @@ async function analyzeJob(req, res) {
         
         const $ = cheerio.load(html);
         const pageText = $('body').text().toLowerCase();
+        
+        // Extract Open Graph data for link preview
+        const openGraph = extractOpenGraphData($);
         
         // Common tech skills to look for
         const techSkills = [
@@ -457,7 +510,13 @@ async function analyzeJob(req, res) {
             matchedSkills: matchedSkills,
             matchScore: matchScore,
             experience: experience,
-            education: education ? education.substring(0, 200) : null
+            education: education ? education.substring(0, 200) : null,
+            preview: {
+                title: openGraph.title,
+                description: openGraph.description,
+                image: openGraph.image,
+                url: openGraph.url || url
+            }
         };
         
         console.log('[ANALYZE] Match score:', matchScore + '%');

@@ -1,6 +1,6 @@
 {
   "dependencies": {
     "cheerio": "^1.2.0",
-    "puppeteer": "^24.36.0"
+    "puppeteer": "^24.37.2"
   }
 }
