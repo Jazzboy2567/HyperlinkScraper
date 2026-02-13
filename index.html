@@ -76,17 +76,6 @@
             margin-bottom: 20px;
         }
 
-        .loading-preview {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            height: 100%;
-            font-size: 18px;
-            color: #666;
-            padding: 20px;
-        }
-
         .spinner {
             border: 4px solid #f3f3f3;
             border-top: 4px solid #3498db;
@@ -94,7 +83,7 @@
             width: 40px;
             height: 40px;
             animation: spin 1s linear infinite;
-            margin-bottom: 20px;
+            margin: 0 auto 20px;
         }
 
         @keyframes spin {
@@ -265,82 +254,6 @@
         .link.hidden {
             display: none;
         }
-
-        .skills-panel {
-            background-color: #e8f5e9;
-            border: 2px solid #4CAF50;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 20px;
-        }
-
-        .skills-input {
-            width: 100%;
-            padding: 10px;
-            font-size: 14px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            margin-bottom: 10px;
-        }
-
-        .analyze-btn {
-            padding: 10px 20px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        .analyze-btn:hover {
-            background-color: #45a049;
-        }
-
-        .job-score {
-            background-color: #4CAF50;
-            color: white;
-            padding: 5px 12px;
-            border-radius: 15px;
-            font-size: 13px;
-            font-weight: bold;
-            margin-left: 10px;
-        }
-
-        .job-score.medium {
-            background-color: #FF9800;
-        }
-
-        .job-score.low {
-            background-color: #f44336;
-        }
-
-        .extracted-info {
-            background-color: #f5f5f5;
-            border-left: 3px solid #2196F3;
-            padding: 10px;
-            margin-top: 10px;
-            font-size: 13px;
-        }
-
-        .skill-tag {
-            display: inline-block;
-            background-color: #2196F3;
-            color: white;
-            padding: 3px 8px;
-            border-radius: 10px;
-            margin: 2px;
-            font-size: 11px;
-        }
-
-        .skill-tag.matched {
-            background-color: #4CAF50;
-        }
-
-        .requirement-item {
-            margin: 5px 0;
-            padding-left: 15px;
-        }
     </style>
 </head>
 
@@ -375,7 +288,15 @@
             }
 
             currentPageUrl = url;
-            document.getElementById('results').innerHTML = '<p>Loading...</p>';
+            
+            // Show nice loading animation
+            document.getElementById('results').innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <div class="spinner"></div>
+                    <h3>Scraping website...</h3>
+                    <p style="color: #666; font-size: 14px;">This may take 10-30 seconds for dynamic sites like YouTube or SoundCloud</p>
+                </div>
+            `;
 
             try {
                 const response = await fetch('/api/scrape?url=' + encodeURIComponent(url));
@@ -429,20 +350,6 @@
                 html += ' <span class="stats-badge">Filtered ' + data.stats.resourcesFiltered + ' resource files</span>';
             }
             html += ' | <strong>Categories:</strong> ' + data.stats.categories + '</p>';
-
-            // Skills Analysis Panel (show for job sites)
-            const isJobSite = data.sourceUrl.includes('indeed.com') ||
-                data.sourceUrl.includes('linkedin.com') ||
-                data.sourceUrl.includes('glassdoor.com');
-
-            if (isJobSite) {
-                html += '<div class="skills-panel">';
-                html += '<h3 style="margin-top: 0; color: #2E7D32;">Job Analysis & Matching</h3>';
-                html += '<p style="margin-bottom: 10px;">Enter your skills (comma-separated) to analyze and score job matches:</p>';
-                html += '<input type="text" class="skills-input" id="userSkills" placeholder="e.g., Python, JavaScript, React, AWS, Machine Learning, SQL">';
-                html += '<button class="analyze-btn" onclick="analyzeJobs()">Analyze Jobs</button>';
-                html += '</div>';
-            }
 
             // Filter input
             html += '<div class="filter-container">';
@@ -516,31 +423,12 @@
 
             const hiddenClass = matchesFilter ? '' : ' hidden';
 
-            // Check if this is a redirect/tracking link
-            const isRedirectLink = link.url.includes('/rc/clk') ||
-                link.url.includes('/redir/') ||
-                link.url.includes('/redirect') ||
-                link.url.includes('/click/') ||
-                link.url.includes('?redirect=');
-
             let html = '<div class="link external-link' + hiddenClass + '" data-link-text="' + escapedText.toLowerCase() + '" data-link-url="' + escapedUrl.toLowerCase() + '">';
             html += '<div class="link-content">';
             html += '<strong>' + escapedText + '</strong><br>';
             html += '<a href="' + escapedUrl + '" target="_blank">' + escapedUrl + '</a>';
-
-            // Show redirect indicator
-            if (isRedirectLink) {
-                html += '<br><span style="color: #ff9800; font-size: 12px;">Tracking/Redirect Link</span>';
-            }
-
             html += '</div>';
             html += '<div class="link-actions">';
-
-            // Add "Follow" button for redirect links
-            if (isRedirectLink) {
-                html += '<button class="preview-btn" style="background-color: #ff9800;" onclick="followRedirect(' + link.index + ')">Follow</button>';
-            }
-
             html += '<button class="search-btn" onclick="searchLink(' + link.index + ')">Search</button>';
             html += '</div>';
             html += '</div>';
@@ -616,179 +504,6 @@
                 document.getElementById('urlInput').value = window.currentLinks[index].url;
                 scrape();
             }
-        }
-
-        async function followRedirect(index) {
-            if (!window.currentLinks || !window.currentLinks[index]) {
-                alert('Link not found');
-                return;
-            }
-
-            const link = window.currentLinks[index];
-            const btn = event.target;
-            const originalText = btn.textContent;
-
-            btn.textContent = 'Following...';
-            btn.disabled = true;
-
-            try {
-                const response = await fetch('/api/follow-redirect?url=' + encodeURIComponent(link.url));
-                const data = await response.json();
-
-                if (data.error) {
-                    alert('Error: ' + data.error);
-                } else {
-                    // Update the link in the UI
-                    const linkElement = btn.closest('.link');
-                    const linkContent = linkElement.querySelector('.link-content');
-
-                    // Add the final URL
-                    linkContent.innerHTML += '<br><strong style="color: #4CAF50;">Final URL:</strong><br>' +
-                        '<a href="' + data.finalUrl + '" target="_blank">' + data.finalUrl + '</a>';
-
-                    // Update the link in storage
-                    window.currentLinks[index].finalUrl = data.finalUrl;
-
-                    // Remove the Follow button since we've resolved it
-                    btn.remove();
-                }
-            } catch (error) {
-                alert('Error following redirect: ' + error.message);
-                btn.textContent = originalText;
-                btn.disabled = false;
-            }
-        }
-
-        async function analyzeJobs() {
-            const skillsInput = document.getElementById('userSkills');
-            const userSkills = skillsInput.value
-                .toLowerCase()
-                .split(',')
-                .map(s => s.trim())
-                .filter(s => s.length > 0);
-
-            if (userSkills.length === 0) {
-                alert('Please enter at least one skill');
-                return;
-            }
-
-            console.log('Analyzing jobs with skills:', userSkills);
-
-            // Show loading state
-            const analyzeBtn = event.target;
-            analyzeBtn.textContent = 'Analyzing...';
-            analyzeBtn.disabled = true;
-
-            try {
-                // Analyze each link
-                const links = window.currentLinks;
-                let analyzed = 0;
-
-                for (let i = 0; i < links.length; i++) {
-                    const link = links[i];
-
-                    // Send to backend for analysis
-                    const response = await fetch('/api/analyze-job?url=' + encodeURIComponent(link.url) + '&skills=' + encodeURIComponent(userSkills.join(',')));
-                    const analysis = await response.json();
-
-                    if (!analysis.error) {
-                        analyzed++;
-
-                        // Store analysis in link object
-                        link.analysis = analysis;
-
-                        // Update UI for this link
-                        updateLinkWithAnalysis(i, analysis, userSkills);
-                    }
-
-                    // Update progress
-                    analyzeBtn.textContent = `Analyzing... (${analyzed}/${links.length})`;
-                }
-
-                // Sort links by score
-                sortLinksByScore();
-
-                analyzeBtn.textContent = `✓ Analyzed ${analyzed} jobs`;
-
-            } catch (error) {
-                console.error('Analysis error:', error);
-                analyzeBtn.textContent = 'Analyze Jobs';
-                analyzeBtn.disabled = false;
-                alert('Error analyzing jobs: ' + error.message);
-            }
-        }
-
-        function updateLinkWithAnalysis(index, analysis, userSkills) {
-            const linkElements = document.querySelectorAll('.link');
-            if (!linkElements[index]) return;
-
-            const linkElement = linkElements[index];
-            const linkContent = linkElement.querySelector('.link-content');
-
-            // Remove old analysis if exists
-            const oldAnalysis = linkContent.querySelector('.extracted-info');
-            if (oldAnalysis) oldAnalysis.remove();
-
-            // Calculate match score
-            const score = analysis.matchScore || 0;
-            const scoreClass = score >= 70 ? '' : score >= 40 ? 'medium' : 'low';
-
-            // Add score badge
-            const titleStrong = linkContent.querySelector('strong');
-            if (titleStrong && !titleStrong.querySelector('.job-score')) {
-                titleStrong.innerHTML += `<span class="job-score ${scoreClass}">${score}% match</span>`;
-            }
-
-            // Create analysis display
-            let analysisHtml = '<div class="extracted-info">';
-
-            // Matched skills
-            if (analysis.matchedSkills && analysis.matchedSkills.length > 0) {
-                analysisHtml += '<div><strong>✓ Matched Skills:</strong> ';
-                analysis.matchedSkills.forEach(skill => {
-                    analysisHtml += `<span class="skill-tag matched">${skill}</span>`;
-                });
-                analysisHtml += '</div>';
-            }
-
-            // Missing skills
-            if (analysis.requiredSkills && analysis.requiredSkills.length > 0) {
-                analysisHtml += '<div style="margin-top: 8px;"><strong>Required Skills:</strong> ';
-                analysis.requiredSkills.forEach(skill => {
-                    const matched = userSkills.includes(skill.toLowerCase());
-                    analysisHtml += `<span class="skill-tag ${matched ? 'matched' : ''}">${skill}</span>`;
-                });
-                analysisHtml += '</div>';
-            }
-
-            // Experience
-            if (analysis.experience) {
-                analysisHtml += `<div style="margin-top: 8px;"><strong>Experience:</strong> ${analysis.experience}</div>`;
-            }
-
-            // Education
-            if (analysis.education) {
-                analysisHtml += `<div style="margin-top: 8px;"><strong>Education:</strong> ${analysis.education}</div>`;
-            }
-
-            analysisHtml += '</div>';
-
-            linkContent.insertAdjacentHTML('beforeend', analysisHtml);
-        }
-
-        function sortLinksByScore() {
-            const allTab = document.getElementById('all-tab');
-            const links = Array.from(allTab.querySelectorAll('.link'));
-
-            // Sort by match score
-            links.sort((a, b) => {
-                const scoreA = parseInt(a.querySelector('.job-score')?.textContent) || 0;
-                const scoreB = parseInt(b.querySelector('.job-score')?.textContent) || 0;
-                return scoreB - scoreA;
-            });
-
-            // Re-append in sorted order
-            links.forEach(link => allTab.appendChild(link));
         }
     </script>
 </body>
