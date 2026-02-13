@@ -437,7 +437,7 @@
 
             if (isJobSite) {
                 html += '<div class="skills-panel">';
-                html += '<h3 style="margin-top: 0; color: #2E7D32;">🎯 Job Analysis & Matching</h3>';
+                html += '<h3 style="margin-top: 0; color: #2E7D32;">Job Analysis & Matching</h3>';
                 html += '<p style="margin-bottom: 10px;">Enter your skills (comma-separated) to analyze and score job matches:</p>';
                 html += '<input type="text" class="skills-input" id="userSkills" placeholder="e.g., Python, JavaScript, React, AWS, Machine Learning, SQL">';
                 html += '<button class="analyze-btn" onclick="analyzeJobs()">Analyze Jobs</button>';
@@ -530,7 +530,7 @@
 
             // Show redirect indicator
             if (isRedirectLink) {
-                html += '<br><span style="color: #ff9800; font-size: 12px;">⚠️ Tracking/Redirect Link</span>';
+                html += '<br><span style="color: #ff9800; font-size: 12px;">Tracking/Redirect Link</span>';
             }
 
             html += '</div>';
@@ -541,7 +541,6 @@
                 html += '<button class="preview-btn" style="background-color: #ff9800;" onclick="followRedirect(' + link.index + ')">Follow</button>';
             }
 
-            html += '<button class="preview-btn" onclick="previewLink(' + link.index + ')">Preview</button>';
             html += '<button class="search-btn" onclick="searchLink(' + link.index + ')">Search</button>';
             html += '</div>';
             html += '</div>';
@@ -617,59 +616,6 @@
                 document.getElementById('urlInput').value = window.currentLinks[index].url;
                 scrape();
             }
-        }
-
-        function previewCurrent() {
-            if (!currentPageUrl) {
-                alert('Please scrape a page first');
-                return;
-            }
-            loadPreview(currentPageUrl, 'Current Page');
-        }
-
-        function previewLink(index) {
-            if (window.currentLinks && window.currentLinks[index]) {
-                const link = window.currentLinks[index];
-                loadPreview(link.url, link.text || link.url);
-            }
-        }
-
-        async function loadPreview(url, title) {
-            const previewPanel = document.getElementById('preview-panel');
-            const iframe = document.getElementById('preview-iframe');
-            const previewTitle = document.getElementById('preview-title');
-
-            console.log('Loading preview for:', url);
-
-            // Show the panel
-            previewPanel.classList.add('show');
-
-            // Update title immediately
-            previewTitle.textContent = title || 'Preview';
-
-            // Build the preview URL
-            const previewUrl = 'http://localhost:3000/api/preview?url=' + encodeURIComponent(url);
-            console.log('Preview URL:', previewUrl);
-
-            // Directly load the preview
-            iframe.src = previewUrl;
-
-            iframe.onload = function () {
-                console.log('Preview iframe loaded');
-            };
-
-            iframe.onerror = function (e) {
-                console.error('Preview iframe error:', e);
-                previewTitle.textContent = 'Error loading preview';
-            };
-        }
-
-        function closePreview() {
-            const previewPanel = document.getElementById('preview-panel');
-            const iframe = document.getElementById('preview-iframe');
-
-            previewPanel.classList.remove('show');
-            iframe.srcdoc = '';
         }
 
         async function followRedirect(index) {
