@@ -296,13 +296,13 @@
 
             currentPageUrl = url;
             const startTime = Date.now();
-            
+
             // Show nice loading animation
             document.getElementById('results').innerHTML = `
                 <div style="text-align: center; padding: 40px;">
                     <div class="spinner"></div>
                     <h3>Scraping website...</h3>
-                    <p style="color: #666; font-size: 14px;">${thoroughMode ? 'Thorough mode: This may take 30-180 seconds or more' : 'This may take 10-30 seconds for dynamic sites'}</p>
+                    <p style="color: #666; font-size: 14px;">${thoroughMode ? 'Thorough mode: This may take 5-60 seconds' : 'This may take 5-20 seconds for dynamic sites'}</p>
                 </div>
             `;
 
@@ -364,7 +364,7 @@
                 html += ' <span class="stats-badge">Filtered ' + data.stats.resourcesFiltered + ' resource files</span>';
             }
             html += ' | <strong>Categories:</strong> ' + data.stats.categories;
-    
+
             // Add time taken display
             if (data.timeTaken) {
                 html += ' | <strong>Time:</strong> ' + data.timeTaken + 's';
@@ -480,8 +480,10 @@
         }
 
         function updateFilterCount() {
-            const totalLinks = document.querySelectorAll('.link').length;
-            const visibleLinks = document.querySelectorAll('.link:not(.hidden)').length;
+            // Count unique links (only from All Links tab to avoid duplicates)
+            const allLinksTab = document.getElementById('all-tab');
+            const totalLinks = allLinksTab ? allLinksTab.querySelectorAll('.link').length : 0;
+            const visibleLinks = allLinksTab ? allLinksTab.querySelectorAll('.link:not(.hidden)').length : 0;
             const filterCount = document.getElementById('filterCount');
 
             if (filterCount) {
