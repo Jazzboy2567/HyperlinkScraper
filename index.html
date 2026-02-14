@@ -263,6 +263,12 @@
         <input type="text" id="urlInput" placeholder="Enter website URL" value="https://en.wikipedia.org/wiki/Cat">
         <button onclick="scrape()">Scrape</button>
     </div>
+    <div style="margin-bottom: 20px;">
+        <label style="cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+            <input type="checkbox" id="thoroughMode" style="cursor: pointer; margin: 0; width: auto;">
+            <span style="font-size: 14px;">Thorough mode (slower, more links)</span>
+        </label>
+    </div>
 
     <div class="container">
         <div id="results"></div>
@@ -281,6 +287,7 @@
 
         async function scrape() {
             const url = document.getElementById('urlInput').value;
+            const thoroughMode = document.getElementById('thoroughMode').checked;
 
             if (!url) {
                 alert('Please enter a URL');
@@ -288,19 +295,26 @@
             }
 
             currentPageUrl = url;
+            const startTime = Date.now();
             
             // Show nice loading animation
             document.getElementById('results').innerHTML = `
                 <div style="text-align: center; padding: 40px;">
                     <div class="spinner"></div>
                     <h3>Scraping website...</h3>
-                    <p style="color: #666; font-size: 14px;">This may take 10-30 seconds for dynamic sites like YouTube or SoundCloud</p>
+                    <p style="color: #666; font-size: 14px;">${thoroughMode ? 'Thorough mode: This may take 30-180 seconds or more' : 'This may take 10-30 seconds for dynamic sites'}</p>
                 </div>
             `;
 
             try {
-                const response = await fetch('/api/scrape?url=' + encodeURIComponent(url));
+                const apiUrl = '/api/scrape?url=' + encodeURIComponent(url) + (thoroughMode ? '&thorough=true' : '');
+                const response = await fetch(apiUrl);
                 const data = await response.json();
+
+                // Calculate time taken
+                const endTime = Date.now();
+                const timeTaken = ((endTime - startTime) / 1000).toFixed(2);
+                data.timeTaken = timeTaken;
 
                 if (data.error) {
                     document.getElementById('results').innerHTML = '<p style="color: red;">Error: ' + data.error + '</p>';
@@ -349,7 +363,13 @@
             if (data.stats.resourcesFiltered > 0) {
                 html += ' <span class="stats-badge">Filtered ' + data.stats.resourcesFiltered + ' resource files</span>';
             }
-            html += ' | <strong>Categories:</strong> ' + data.stats.categories + '</p>';
+            html += ' | <strong>Categories:</strong> ' + data.stats.categories;
+    
+            // Add time taken display
+            if (data.timeTaken) {
+                html += ' | <strong>Time:</strong> ' + data.timeTaken + 's';
+            }
+            html += '</p>';
 
             // Filter input
             html += '<div class="filter-container">';
