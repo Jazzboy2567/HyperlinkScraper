@@ -260,7 +260,7 @@
 <body>
     <h1>Website Scraper</h1>
     <div class="input-container">
-        <input type="text" id="urlInput" placeholder="Enter website URL" value="https://en.wikipedia.org/wiki/Cat">
+        <input type="text" id="urlInput" placeholder="Enter website URL" value="https://en.wikipedia.org/wiki/Special:Random">
         <button onclick="scrape()">Scrape</button>
     </div>
     <div style="margin-bottom: 20px;">
@@ -395,15 +395,6 @@
                     html += '<div class="category-count">' + category.count + ' links</div>';
                     html += '</div>';
                     html += '<div class="category-pattern">/' + category.pattern + '</div>';
-
-                    if (category.subcategories.length > 0) {
-                        html += '<div class="subcategories">';
-                        category.subcategories.forEach(sub => {
-                            html += '<span class="subcategory-tag">' + sub + '</span>';
-                        });
-                        html += '</div>';
-                    }
-
                     html += '<button class="toggle-category" onclick="toggleCategory(' + catIndex + ')">Show Links</button>';
                     html += '<div id="category-' + catIndex + '" class="category-links">';
 
@@ -433,7 +424,7 @@
         }
 
         function renderLink(link, titleFilter = '') {
-            const escapedText = link.text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const escapedText = link.text.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/^["']|["']$/g, '');
             const escapedUrl = link.url.replace(/"/g, '&quot;');
 
             // Check if link matches filter

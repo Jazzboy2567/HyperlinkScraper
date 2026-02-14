@@ -23,8 +23,6 @@ const server = http.createServer(function (req, res) {
     }
     if (req.url.startsWith('/api/scrape')) {
         scrapeWebsite(req, res);
-    } else if (req.url.startsWith('/api/preview')) {
-        previewPage(req, res);
     } else if (req.url.startsWith('/api/analyze-content')) {
         analyzeContent(req, res);
     } else if (req.url === '/api/test') {
@@ -35,8 +33,7 @@ const server = http.createServer(function (req, res) {
             message: 'Scraper API is running!',
             endpoints: {
                 scrape: '/api/scrape?url=YOUR_URL',
-                analyze: '/api/analyze-content?url=YOUR_URL&keywords=keyword1,keyword2',
-                follow: '/api/follow-redirect?url=YOUR_URL'
+                analyze: '/api/analyze-content?url=YOUR_URL&keywords=keyword1,keyword2'
             }
         }));
     } else if (req.url === '/' || req.url === '/index.html') {
@@ -212,10 +209,9 @@ async function scrapeWithTimeout(browser, url, stealthMode) {
     });
 
     console.log('Loading page...');
-    const waitUntil = stealthMode ? 'domcontentloaded' : 'domcontentloaded';
     const timeout = stealthMode ? 90000 : 30000;
 
-    await page.goto(url, { waitUntil, timeout });
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout });
 
     if (stealthMode) {
         await page.waitForSelector('body', { timeout: 30000 });
@@ -235,13 +231,13 @@ async function scrapeWithTimeout(browser, url, stealthMode) {
         for (let i = 0; i < maxWaits; i++) {
             const currentLinkCount = await page.evaluate(() => document.querySelectorAll('a').length);
             console.log(`Content check ${i + 1}: Found ${currentLinkCount} links`);
-            
+
             // Early exit if we already have plenty of links
             if (currentLinkCount > 50) {
                 console.log('Already found plenty of links (50+), skipping remaining checks');
                 break;
             }
-            
+
             if (currentLinkCount === previousLinkCount && currentLinkCount > 0) {
                 stableCount++;
                 if (stableCount >= 1) {
@@ -251,7 +247,7 @@ async function scrapeWithTimeout(browser, url, stealthMode) {
             } else {
                 stableCount = 0;
             }
-            
+
             previousLinkCount = currentLinkCount;
             await new Promise(resolve => setTimeout(resolve, 1000));
         }
@@ -274,7 +270,7 @@ async function scrapeWithTimeout(browser, url, stealthMode) {
         // Only do additional dynamic content waiting if we saw growth during smart wait
         if (previousLinkCount > 0 && linkCount > 0) {
             const initialLinkCount = await page.evaluate(() => document.querySelectorAll('a').length);
-            
+
             // Check if links are still increasing
             if (initialLinkCount > linkCount) {
                 console.log('Links increased during wait - checking for more dynamic content...');
@@ -285,7 +281,7 @@ async function scrapeWithTimeout(browser, url, stealthMode) {
                     await new Promise(resolve => setTimeout(resolve, 2000));
                     const newLinkCount = await page.evaluate(() => document.querySelectorAll('a').length);
                     console.log(`Dynamic check ${i + 1}: ${newLinkCount} links (was ${linkCount})`);
-                    
+
                     if (newLinkCount > linkCount) {
                         console.log('More links appeared, continuing to wait...');
                         linkCount = newLinkCount;
@@ -391,19 +387,12 @@ async function scrapeWithCurl(url) {
     });
 }
 
-function generateReferrer(targetUrl) {
-    try {
-        // Always use Google as referrer - most sites accept traffic from Google
-        // This simulates a user clicking a search result
-        return 'https://www.google.com/';
-
-    } catch (error) {
-        return 'https://www.google.com/';
-    }
+function generateReferrer() {
+    return 'https://www.google.com/';
 }
 
 function buildCurlCommand(url) {
-    const referrer = generateReferrer(url);
+    const referrer = generateReferrer();
     const escapedUrl = url.replace(/"/g, '\\"');
     const escapedReferrer = referrer.replace(/"/g, '\\"');
 
@@ -616,12 +605,10 @@ function categorizeLinks(links) {
                 }
             }
 
-            const subcategories = availableLinks.map(link => {
+            const uniqueSubcats = [...new Set(availableLinks.map(link => {
                 const varyingParts = link.pathParts.slice(commonParts.length);
                 return varyingParts.join('/') || 'root';
-            });
-
-            const uniqueSubcats = [...new Set(subcategories)];
+            }))];
 
             if (uniqueSubcats.length > 1 || availableLinks.length >= 5) {
                 categories.push({
@@ -629,8 +616,7 @@ function categorizeLinks(links) {
                     pattern: commonParts.join('/') || patternGroup.domain,
                     commonPath: commonParts,
                     count: availableLinks.length,
-                    links: availableLinks,
-                    subcategories: uniqueSubcats.slice(0, 10)
+                    links: availableLinks
                 });
 
                 availableLinks.forEach(link => usedLinks.add(link.index));
@@ -665,7 +651,7 @@ async function scrapeWebsite(req, res) {
                 console.log('[THOROUGH] Trying curl first...');
                 let curlHtml = '';
                 let curlLinkCount = 0;
-                
+
                 try {
                     curlHtml = await scrapeWithCurl(url);
                     const $curl = cheerio.load(curlHtml);
@@ -674,12 +660,12 @@ async function scrapeWebsite(req, res) {
                 } catch (e) {
                     console.log('[THOROUGH] Curl failed:', e.message);
                 }
-                
+
                 if (puppeteer) {
                     console.log('[THOROUGH] Trying Puppeteer (normal mode)...');
                     let puppeteerHtml = '';
                     let puppeteerLinkCount = 0;
-                    
+
                     try {
                         puppeteerHtml = await scrapeWithPuppeteer(url);
                         const $puppeteer = cheerio.load(puppeteerHtml);
@@ -688,26 +674,26 @@ async function scrapeWebsite(req, res) {
                     } catch (e) {
                         console.log('[THOROUGH] Puppeteer failed:', e.message);
                     }
-                    
+
                     // Compare curl vs puppeteer
                     const difference = Math.abs(puppeteerLinkCount - curlLinkCount);
                     const maxCount = Math.max(puppeteerLinkCount, curlLinkCount);
                     const percentageDiff = maxCount > 0 ? (difference / maxCount) * 100 : 0;
-                    
+
                     console.log(`[THOROUGH] Difference: ${difference} links (${percentageDiff.toFixed(1)}%)`);
-                    
+
                     // Only try stealth mode if there's a significant gap (>20% difference) AND neither method got many links
                     if (percentageDiff > 20 && maxCount < 50) {
                         console.log('[THOROUGH] Significant gap detected and low link count - trying stealth mode...');
                         let stealthHtml = '';
                         let stealthLinkCount = 0;
-                        
+
                         try {
                             stealthHtml = await scrapeWithPuppeteerStealth(url);
                             const $stealth = cheerio.load(stealthHtml);
                             stealthLinkCount = $stealth('a').length;
                             console.log('[THOROUGH] Stealth Puppeteer found', stealthLinkCount, 'links');
-                            
+
                             // Compare all three
                             if (stealthLinkCount > puppeteerLinkCount && stealthLinkCount > curlLinkCount) {
                                 return { html: stealthHtml, method: 'puppeteer-stealth' };
@@ -795,7 +781,7 @@ async function scrapeWebsite(req, res) {
                                     const $puppeteer = cheerio.load(puppeteerHtml);
                                     const puppeteerLinkCount = $puppeteer('a').length;
                                     console.log('[SUCCESS] Puppeteer found', puppeteerLinkCount, 'links');
-                                    return { html: puppeteerHtml, method: 'puppeteer (curl had no links)' };
+                                    return { html: puppeteerHtml, method: 'puppeteer (auto-fallback)' };
                                 } catch (puppeteerError) {
                                     console.log('[WARNING] Puppeteer also failed, using curl result anyway');
                                     return { html: htmlResult, method: 'curl' };
@@ -805,7 +791,7 @@ async function scrapeWebsite(req, res) {
                                 return { html: htmlResult, method: 'curl' };
                             }
                         }
-                        
+
                         return { html: htmlResult, method: 'curl' };
                     } catch (curlError) {
                         console.log('[FAILED] Curl failed:', curlError.message);
@@ -855,22 +841,26 @@ async function scrapeWebsite(req, res) {
 
         const $ = cheerio.load(html);
 
-        const pageTitle = $('h1').first().text() || $('title').text() || 'Untitled';
-        console.log('Page title:', pageTitle);
+        let pageTitle = $('h1').first().text() || $('title').text() || '';
 
-        const linkPatterns = {
-            absolute: 0,
-            relative: 0,
-            protocolRelative: 0,
-            rcClk: 0,
-            viewjob: 0,
-            other: 0
-        };
+        // If no meaningful title found, use domain as fallback
+        if (!pageTitle.trim() || pageTitle.toLowerCase() === 'untitled') {
+            try {
+                const urlObj = new URL(url);
+                pageTitle = `Content from ${urlObj.hostname}`;
+                console.log('[FALLBACK] Using domain as title:', pageTitle);
+            } catch (e) {
+                pageTitle = 'Untitled';
+            }
+        }
+
+        console.log('Page title:', pageTitle);
 
         const allLinks = [];
 
         $('a').each((i, elem) => {
             const href = $(elem).attr('href');
+            if (!href) return;
 
             let text = '';
 
@@ -933,21 +923,7 @@ async function scrapeWebsite(req, res) {
             }
 
             text = text.replace(/\s*\[[a-z0-9\-]+\]\s*/gi, '').trim();
-            if (!text) text = 'Title not found';
-
-            if (!href) return;
-
-            if (href.startsWith('http://') || href.startsWith('https://')) {
-                linkPatterns.absolute++;
-            } else if (href.startsWith('//')) {
-                linkPatterns.protocolRelative++;
-            } else if (href.startsWith('/')) {
-                linkPatterns.relative++;
-                if (href.includes('/rc/clk')) linkPatterns.rcClk++;
-                if (href.includes('/viewjob')) linkPatterns.viewjob++;
-            } else {
-                linkPatterns.other++;
-            }
+            text = text.replace(/^["']|["']$/g, '').trim();
 
             let absoluteUrl;
 
@@ -966,13 +942,22 @@ async function scrapeWebsite(req, res) {
                 return;
             }
 
+            // Use domain as fallback if no text found
+            if (!text) {
+                try {
+                    const linkUrl = new URL(absoluteUrl);
+                    text = `Content from ${linkUrl.hostname}`;
+                } catch (e) {
+                    text = 'Link';
+                }
+            }
+
             allLinks.push({
                 url: absoluteUrl,
-                text: text || 'No text'
+                text: text
             });
         });
 
-        console.log('Link patterns found:', linkPatterns);
         console.log('Total links found (with duplicates):', allLinks.length);
 
         let externalLinks = deduplicateLinks(allLinks);
@@ -1004,12 +989,12 @@ async function scrapeWebsite(req, res) {
 
     } catch (error) {
         console.error('Scrape error:', error.message);
-        
+
         // Special message for timeout
         if (error.message === 'TIMEOUT_ERROR') {
             res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ 
-                error: 'Scraping timeout: This website took longer than 60 seconds to scrape. The site may have strong anti-bot protection, require authentication, or use heavy JavaScript rendering. Try enabling thorough mode, or if already enabled, this site may not be scrapable with traditional methods.' 
+            res.end(JSON.stringify({
+                error: 'Scraping timeout: This website took longer than 60 seconds to scrape. The site may have strong anti-bot protection, require authentication, or use heavy JavaScript rendering. Try enabling thorough mode, or if already enabled, this site may not be scrapable with traditional methods.'
             }));
         } else {
             res.writeHead(500, { 'Content-Type': 'application/json' });
