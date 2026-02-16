@@ -156,13 +156,13 @@ async function scrapeWithPuppeteerCore(url, stealthMode = false) {
         });
 
         // Race between scraping and timeout
-        const html = await Promise.race([
+        const result = await Promise.race([
             scrapeWithTimeout(browser, url, stealthMode),
             timeoutPromise
         ]);
 
         await browser.close();
-        return html;
+        return result;
 
     } catch (error) {
         await browser.close();
@@ -352,9 +352,11 @@ async function scrapeWithTimeout(browser, url, stealthMode) {
     await new Promise(resolve => setTimeout(resolve, finalWait));
 
     const html = await page.content();
+    const finalUrl = page.url();
     console.log(`${stealthMode ? 'Stealth scrape' : 'Page loaded'} successfully, HTML length:`, html.length);
+    console.log('Final URL after redirects:', finalUrl);
 
-    return html;
+    return { html, finalUrl };
 }
 
 // Normal Puppeteer scraping
@@ -494,7 +496,8 @@ async function analyzeContent(req, res) {
         // Fetch the page
         let html;
         if (puppeteer && needsBrowserAutomation(url)) {
-            html = await scrapeWithPuppeteer(url);
+            const result = await scrapeWithPuppeteer(url);
+            html = result.html;
         } else {
             html = await scrapeWithCurl(url);
         }
@@ -643,6 +646,7 @@ async function scrapeWebsite(req, res) {
     try {
         let html;
         let method = 'unknown';
+        let finalUrl = url; // Default to original URL
 
         // Wrap entire scraping logic with 60-second total timeout
         const scrapeWithTotalTimeout = async () => {
@@ -665,9 +669,12 @@ async function scrapeWebsite(req, res) {
                     console.log('[THOROUGH] Trying Puppeteer (normal mode)...');
                     let puppeteerHtml = '';
                     let puppeteerLinkCount = 0;
+                    let puppeteerFinalUrl = url;
 
                     try {
-                        puppeteerHtml = await scrapeWithPuppeteer(url);
+                        const puppeteerResult = await scrapeWithPuppeteer(url);
+                        puppeteerHtml = puppeteerResult.html;
+                        puppeteerFinalUrl = puppeteerResult.finalUrl;
                         const $puppeteer = cheerio.load(puppeteerHtml);
                         puppeteerLinkCount = $puppeteer('a').length;
                         console.log('[THOROUGH] Puppeteer found', puppeteerLinkCount, 'links');
@@ -687,30 +694,33 @@ async function scrapeWebsite(req, res) {
                         console.log('[THOROUGH] Significant gap detected and low link count - trying stealth mode...');
                         let stealthHtml = '';
                         let stealthLinkCount = 0;
+                        let stealthFinalUrl = url;
 
                         try {
-                            stealthHtml = await scrapeWithPuppeteerStealth(url);
+                            const stealthResult = await scrapeWithPuppeteerStealth(url);
+                            stealthHtml = stealthResult.html;
+                            stealthFinalUrl = stealthResult.finalUrl;
                             const $stealth = cheerio.load(stealthHtml);
                             stealthLinkCount = $stealth('a').length;
                             console.log('[THOROUGH] Stealth Puppeteer found', stealthLinkCount, 'links');
 
                             // Compare all three
                             if (stealthLinkCount > puppeteerLinkCount && stealthLinkCount > curlLinkCount) {
-                                return { html: stealthHtml, method: 'puppeteer-stealth' };
+                                return { html: stealthHtml, method: 'puppeteer-stealth', finalUrl: stealthFinalUrl };
                             } else if (puppeteerLinkCount >= curlLinkCount) {
-                                return { html: puppeteerHtml, method: 'puppeteer' };
+                                return { html: puppeteerHtml, method: 'puppeteer', finalUrl: puppeteerFinalUrl };
                             } else {
-                                return { html: curlHtml, method: 'curl' };
+                                return { html: curlHtml, method: 'curl', finalUrl: url };
                             }
                         } catch (e) {
                             console.log('[THOROUGH] Stealth failed:', e.message);
                             // Use best of curl/puppeteer
                             if (puppeteerLinkCount > curlLinkCount) {
-                                return { html: puppeteerHtml, method: 'puppeteer' };
+                                return { html: puppeteerHtml, method: 'puppeteer', finalUrl: puppeteerFinalUrl };
                             } else if (curlLinkCount > 0) {
-                                return { html: curlHtml, method: 'curl' };
+                                return { html: curlHtml, method: 'curl', finalUrl: url };
                             } else {
-                                return { html: puppeteerHtml, method: 'puppeteer' };
+                                return { html: puppeteerHtml, method: 'puppeteer', finalUrl: puppeteerFinalUrl };
                             }
                         }
                     } else {
@@ -718,20 +728,20 @@ async function scrapeWebsite(req, res) {
                         // Use whichever got more links
                         if (puppeteerLinkCount > curlLinkCount) {
                             console.log('[THOROUGH] Using Puppeteer (', puppeteerLinkCount, 'vs', curlLinkCount, 'links)');
-                            return { html: puppeteerHtml, method: 'puppeteer' };
+                            return { html: puppeteerHtml, method: 'puppeteer', finalUrl: puppeteerFinalUrl };
                         } else if (curlLinkCount > 0) {
                             console.log('[THOROUGH] Using curl (', curlLinkCount, 'vs', puppeteerLinkCount, 'links)');
-                            return { html: curlHtml, method: 'curl' };
+                            return { html: curlHtml, method: 'curl', finalUrl: url };
                         } else if (puppeteerLinkCount > 0) {
                             console.log('[THOROUGH] Using Puppeteer - curl had no links');
-                            return { html: puppeteerHtml, method: 'puppeteer' };
+                            return { html: puppeteerHtml, method: 'puppeteer', finalUrl: puppeteerFinalUrl };
                         } else {
                             throw new Error('Both curl and Puppeteer failed to get any links');
                         }
                     }
                 } else {
                     if (curlLinkCount > 0) {
-                        return { html: curlHtml, method: 'curl' };
+                        return { html: curlHtml, method: 'curl', finalUrl: url };
                     } else {
                         throw new Error('Curl found no links and Puppeteer not available');
                     }
@@ -745,17 +755,17 @@ async function scrapeWebsite(req, res) {
 
                     try {
                         console.log('[METHOD 1] Trying Puppeteer...');
-                        const htmlResult = await scrapeWithPuppeteer(url);
-                        console.log('[SUCCESS] Got HTML with Puppeteer, length:', htmlResult.length);
-                        return { html: htmlResult, method: 'puppeteer' };
+                        const puppeteerResult = await scrapeWithPuppeteer(url);
+                        console.log('[SUCCESS] Got HTML with Puppeteer, length:', puppeteerResult.html.length);
+                        return { html: puppeteerResult.html, method: 'puppeteer', finalUrl: puppeteerResult.finalUrl };
                     } catch (puppeteerError) {
                         console.log('[FAILED] Puppeteer failed:', puppeteerError.message);
 
                         try {
                             console.log('[METHOD 2] Trying Puppeteer with enhanced stealth...');
-                            const htmlResult = await scrapeWithPuppeteerStealth(url);
-                            console.log('[SUCCESS] Got HTML with stealth Puppeteer, length:', htmlResult.length);
-                            return { html: htmlResult, method: 'puppeteer-stealth' };
+                            const stealthResult = await scrapeWithPuppeteerStealth(url);
+                            console.log('[SUCCESS] Got HTML with stealth Puppeteer, length:', stealthResult.html.length);
+                            return { html: stealthResult.html, method: 'puppeteer-stealth', finalUrl: stealthResult.finalUrl };
                         } catch (stealthError) {
                             console.log('[FAILED] Stealth Puppeteer failed:', stealthError.message);
                             throw new Error('All scraping methods failed. Site may have strong anti-bot protection.');
@@ -764,11 +774,11 @@ async function scrapeWebsite(req, res) {
                 } else {
                     try {
                         console.log('[METHOD 1] Trying curl...');
-                        const htmlResult = await scrapeWithCurl(url);
-                        console.log('[SUCCESS] Got HTML with curl, length:', htmlResult.length);
+                        const curlHtml = await scrapeWithCurl(url);
+                        console.log('[SUCCESS] Got HTML with curl, length:', curlHtml.length);
 
                         // CHECK IF CURL GOT ANY LINKS
-                        const $ = cheerio.load(htmlResult);
+                        const $ = cheerio.load(curlHtml);
                         const linkCount = $('a').length;
                         console.log('[VALIDATION] Curl found', linkCount, 'links');
 
@@ -777,39 +787,39 @@ async function scrapeWebsite(req, res) {
 
                             if (puppeteer) {
                                 try {
-                                    const puppeteerHtml = await scrapeWithPuppeteer(url);
-                                    const $puppeteer = cheerio.load(puppeteerHtml);
+                                    const puppeteerResult = await scrapeWithPuppeteer(url);
+                                    const $puppeteer = cheerio.load(puppeteerResult.html);
                                     const puppeteerLinkCount = $puppeteer('a').length;
                                     console.log('[SUCCESS] Puppeteer found', puppeteerLinkCount, 'links');
-                                    return { html: puppeteerHtml, method: 'puppeteer (auto-fallback)' };
+                                    return { html: puppeteerResult.html, method: 'puppeteer (auto-fallback)', finalUrl: puppeteerResult.finalUrl };
                                 } catch (puppeteerError) {
                                     console.log('[WARNING] Puppeteer also failed, using curl result anyway');
-                                    return { html: htmlResult, method: 'curl' };
+                                    return { html: curlHtml, method: 'curl', finalUrl: url };
                                 }
                             } else {
                                 console.log('[WARNING] No Puppeteer available, using curl result with', linkCount, 'links');
-                                return { html: htmlResult, method: 'curl' };
+                                return { html: curlHtml, method: 'curl', finalUrl: url };
                             }
                         }
 
-                        return { html: htmlResult, method: 'curl' };
+                        return { html: curlHtml, method: 'curl', finalUrl: url };
                     } catch (curlError) {
                         console.log('[FAILED] Curl failed:', curlError.message);
 
                         if (puppeteer) {
                             try {
                                 console.log('[METHOD 2] Trying Puppeteer...');
-                                const htmlResult = await scrapeWithPuppeteer(url);
-                                console.log('[SUCCESS] Got HTML with Puppeteer, length:', htmlResult.length);
-                                return { html: htmlResult, method: 'puppeteer' };
+                                const puppeteerResult = await scrapeWithPuppeteer(url);
+                                console.log('[SUCCESS] Got HTML with Puppeteer, length:', puppeteerResult.html.length);
+                                return { html: puppeteerResult.html, method: 'puppeteer', finalUrl: puppeteerResult.finalUrl };
                             } catch (puppeteerError) {
                                 console.log('[FAILED] Puppeteer failed:', puppeteerError.message);
 
                                 try {
                                     console.log('[METHOD 3] Trying Puppeteer with enhanced stealth...');
-                                    const htmlResult = await scrapeWithPuppeteerStealth(url);
-                                    console.log('[SUCCESS] Got HTML with stealth Puppeteer, length:', htmlResult.length);
-                                    return { html: htmlResult, method: 'puppeteer-stealth' };
+                                    const stealthResult = await scrapeWithPuppeteerStealth(url);
+                                    console.log('[SUCCESS] Got HTML with stealth Puppeteer, length:', stealthResult.html.length);
+                                    return { html: stealthResult.html, method: 'puppeteer-stealth', finalUrl: stealthResult.finalUrl };
                                 } catch (stealthError) {
                                     console.log('[FAILED] Stealth Puppeteer failed:', stealthError.message);
                                     throw new Error('All scraping methods failed. Site may have strong anti-bot protection.');
@@ -831,6 +841,26 @@ async function scrapeWebsite(req, res) {
         const result = await Promise.race([scrapeWithTotalTimeout(), timeoutPromise]);
         html = result.html;
         method = result.method;
+        finalUrl = result.finalUrl || url;
+
+        // If finalUrl wasn't set by Puppeteer, try to extract from HTML meta tags
+        if (finalUrl === url) {
+            const $ = cheerio.load(html);
+            
+            // Try canonical URL first
+            const canonical = $('link[rel="canonical"]').attr('href');
+            if (canonical) {
+                finalUrl = canonical;
+                console.log('[META] Found canonical URL:', finalUrl);
+            } else {
+                // Try og:url
+                const ogUrl = $('meta[property="og:url"]').attr('content');
+                if (ogUrl) {
+                    finalUrl = ogUrl;
+                    console.log('[META] Found og:url:', finalUrl);
+                }
+            }
+        }
 
         // Validate we got actual content
         if (!html || html.length < 100) {
@@ -846,7 +876,7 @@ async function scrapeWebsite(req, res) {
         // If no meaningful title found, use domain as fallback
         if (!pageTitle.trim() || pageTitle.toLowerCase() === 'untitled') {
             try {
-                const urlObj = new URL(url);
+                const urlObj = new URL(finalUrl);
                 pageTitle = `Content from ${urlObj.hostname}`;
                 console.log('[FALLBACK] Using domain as title:', pageTitle);
             } catch (e) {
@@ -933,7 +963,7 @@ async function scrapeWebsite(req, res) {
                 absoluteUrl = 'https:' + href;
             } else if (href.startsWith('/')) {
                 try {
-                    const baseUrl = new URL(url);
+                    const baseUrl = new URL(finalUrl);
                     absoluteUrl = baseUrl.protocol + '//' + baseUrl.host + href;
                 } catch (e) {
                     return;
@@ -974,7 +1004,7 @@ async function scrapeWebsite(req, res) {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
             title: pageTitle,
-            sourceUrl: url,
+            sourceUrl: finalUrl,
             externalLinks: externalLinks,
             categories: categories,
             stats: {

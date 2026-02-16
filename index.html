@@ -1,128 +1,336 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
-    <title>Website Scraper</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HyperlinkScraper</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            /* M3 Light Theme Colors */
+            --md-sys-color-primary: #1976D2;
+            --md-sys-color-on-primary: #FFFFFF;
+            --md-sys-color-primary-container: #D3E4FD;
+            --md-sys-color-on-primary-container: #001C38;
+            
+            --md-sys-color-secondary: #535E71;
+            --md-sys-color-on-secondary: #FFFFFF;
+            --md-sys-color-secondary-container: #D7E3F8;
+            --md-sys-color-on-secondary-container: #101C2B;
+            
+            --md-sys-color-tertiary: #6B5778;
+            --md-sys-color-on-tertiary: #FFFFFF;
+            --md-sys-color-tertiary-container: #F2DAFF;
+            --md-sys-color-on-tertiary-container: #251431;
+            
+            --md-sys-color-surface: #FDFBFF;
+            --md-sys-color-surface-variant: #E1E2EC;
+            --md-sys-color-on-surface: #1A1C1E;
+            --md-sys-color-on-surface-variant: #44474E;
+            
+            --md-sys-color-background: #FDFBFF;
+            --md-sys-color-on-background: #1A1C1E;
+            
+            --md-sys-color-outline: #74777F;
+            --md-sys-color-outline-variant: #C4C6D0;
+            
+            --md-sys-color-error: #BA1A1A;
+            --md-sys-color-on-error: #FFFFFF;
+            
+            /* Elevation shadows */
+            --md-sys-elevation-1: 0px 1px 2px rgba(0, 0, 0, 0.3), 0px 1px 3px 1px rgba(0, 0, 0, 0.15);
+            --md-sys-elevation-2: 0px 1px 2px rgba(0, 0, 0, 0.3), 0px 2px 6px 2px rgba(0, 0, 0, 0.15);
+            --md-sys-elevation-3: 0px 4px 8px 3px rgba(0, 0, 0, 0.15), 0px 1px 3px rgba(0, 0, 0, 0.3);
+        }
+
+        [data-theme="dark"] {
+            /* M3 Dark Theme Colors */
+            --md-sys-color-primary: #A4C9FF;
+            --md-sys-color-on-primary: #00315C;
+            --md-sys-color-primary-container: #2C5F8D;
+            --md-sys-color-on-primary-container: #D3E4FD;
+            
+            --md-sys-color-secondary: #BBC7DB;
+            --md-sys-color-on-secondary: #253140;
+            --md-sys-color-secondary-container: #3C4758;
+            --md-sys-color-on-secondary-container: #D7E3F8;
+            
+            --md-sys-color-tertiary: #D6BEE5;
+            --md-sys-color-on-tertiary: #3B2948;
+            --md-sys-color-tertiary-container: #533F5F;
+            --md-sys-color-on-tertiary-container: #F2DAFF;
+            
+            --md-sys-color-surface: #1A1C1E;
+            --md-sys-color-surface-variant: #44474E;
+            --md-sys-color-on-surface: #E2E2E5;
+            --md-sys-color-on-surface-variant: #C4C6D0;
+            
+            --md-sys-color-background: #1A1C1E;
+            --md-sys-color-on-background: #E2E2E5;
+            
+            --md-sys-color-outline: #8E9099;
+            --md-sys-color-outline-variant: #44474E;
+            
+            --md-sys-color-error: #FFB4AB;
+            --md-sys-color-on-error: #690005;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: Arial, sans-serif;
-            max-width: 1600px;
-            margin: 20px auto;
-            padding: 20px;
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--md-sys-color-background);
+            color: var(--md-sys-color-on-background);
+            line-height: 1.5;
+            transition: background-color 0.3s cubic-bezier(0.2, 0, 0, 1);
         }
 
-        input {
-            width: 500px;
-            padding: 10px;
-            font-size: 14px;
+        /* Typography Scale */
+        .display-large { font-size: 57px; font-weight: 400; line-height: 64px; }
+        .headline-large { font-size: 32px; font-weight: 400; line-height: 40px; }
+        .headline-medium { font-size: 28px; font-weight: 400; line-height: 36px; }
+        .headline-small { font-size: 24px; font-weight: 400; line-height: 32px; }
+        .title-large { font-size: 22px; font-weight: 400; line-height: 28px; }
+        .title-medium { font-size: 16px; font-weight: 500; line-height: 24px; letter-spacing: 0.15px; }
+        .title-small { font-size: 14px; font-weight: 500; line-height: 20px; letter-spacing: 0.1px; }
+        .body-large { font-size: 16px; font-weight: 400; line-height: 24px; letter-spacing: 0.5px; }
+        .body-medium { font-size: 14px; font-weight: 400; line-height: 20px; letter-spacing: 0.25px; }
+        .body-small { font-size: 12px; font-weight: 400; line-height: 16px; letter-spacing: 0.4px; }
+        .label-large { font-size: 14px; font-weight: 500; line-height: 20px; letter-spacing: 0.1px; }
+        .label-medium { font-size: 12px; font-weight: 500; line-height: 16px; letter-spacing: 0.5px; }
+
+        /* Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
         }
 
-        button {
-            padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
-            margin-left: 10px;
-        }
-
-        .search-btn {
-            padding: 5px 15px;
-            font-size: 14px;
-            margin-left: 10px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
-        }
-
-        .search-btn:hover {
-            background-color: #45a049;
-        }
-
-        .link {
-            padding: 10px;
-            margin: 5px 0;
-            border: 1px solid #ddd;
-            border-radius: 5px;
+        /* Top App Bar */
+        .top-app-bar {
+            background-color: var(--md-sys-color-surface);
+            padding: 16px 24px;
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
-            gap: 10px;
+            align-items: center;
+            box-shadow: var(--md-sys-elevation-2);
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
 
-        .link-content {
-            flex: 1;
-            min-width: 0;
-            overflow-wrap: break-word;
-            word-break: break-word;
+        .app-title {
+            font-size: 22px;
+            font-weight: 400;
+            color: var(--md-sys-color-on-surface);
         }
 
-        .link-content a {
-            word-break: break-all;
-            display: inline-block;
-            max-width: 100%;
-        }
-
-        .link-actions {
+        /* Dark Mode Switch */
+        .theme-switch {
             display: flex;
-            gap: 5px;
-            flex-shrink: 0;
+            align-items: center;
+            gap: 12px;
         }
 
-        .external-link {
-            background-color: #fff4e8;
+        .theme-switch-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--md-sys-color-on-surface);
         }
 
-        .input-container {
+        /* Simple Dark Mode Checkbox */
+        .theme-switch input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--md-sys-color-primary);
+        }
+
+        /* Input Group - URL and Button on same line */
+        .input-group {
+            display: flex;
+            gap: 12px;
             margin-bottom: 20px;
+            align-items: stretch;
+            width: 100%;
         }
 
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
+        .input-group .text-field {
+            flex: 1;
         }
 
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
-                transform: rotate(360deg);
-            }
+        /* M3 Text Field (Outlined) */
+        .text-field input {
+            width: 100%;
+            padding: 16px;
+            font-size: 16px;
+            font-family: 'Roboto', sans-serif;
+            border: 1px solid var(--md-sys-color-outline);
+            border-radius: 4px;
+            background-color: transparent;
+            color: var(--md-sys-color-on-surface);
+            transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
         }
 
+        .text-field input:focus {
+            outline: none;
+            border-width: 2px;
+            border-color: var(--md-sys-color-primary);
+        }
+
+        .text-field input::placeholder {
+            color: var(--md-sys-color-on-surface-variant);
+        }
+
+        /* M3 Buttons */
+        .button {
+            padding: 10px 24px;
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 0.1px;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-family: 'Roboto', sans-serif;
+            transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+            position: relative;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        /* Filled Button */
+        .button-filled {
+            background-color: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+            box-shadow: var(--md-sys-elevation-1);
+        }
+
+        .button-filled:hover {
+            box-shadow: var(--md-sys-elevation-2);
+        }
+
+        .button-filled:active {
+            box-shadow: var(--md-sys-elevation-1);
+        }
+
+        /* Outlined Button */
+        .button-outlined {
+            background-color: transparent;
+            color: var(--md-sys-color-primary);
+            border: 1px solid var(--md-sys-color-outline);
+        }
+
+        .button-outlined:hover {
+            background-color: rgba(25, 118, 210, 0.08);
+        }
+
+        /* Tonal Button */
+        .button-tonal {
+            background-color: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+        }
+
+        .button-tonal:hover {
+            box-shadow: var(--md-sys-elevation-1);
+        }
+
+        /* Text Button */
+        .button-text {
+            background-color: transparent;
+            color: var(--md-sys-color-primary);
+            padding: 10px 12px;
+        }
+
+        .button-text:hover {
+            background-color: rgba(25, 118, 210, 0.08);
+        }
+
+        /* Checkbox */
+        .checkbox-container {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            margin-bottom: 24px;
+        }
+
+        .checkbox-container input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--md-sys-color-primary);
+        }
+
+        .checkbox-label {
+            font-size: 14px;
+            color: var(--md-sys-color-on-surface);
+        }
+
+        /* M3 Card */
+        .card {
+            background-color: var(--md-sys-color-surface);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: var(--md-sys-elevation-1);
+            transition: box-shadow 0.2s cubic-bezier(0.2, 0, 0, 1);
+        }
+
+        .card:hover {
+            box-shadow: var(--md-sys-elevation-2);
+        }
+
+        .card-elevated {
+            box-shadow: var(--md-sys-elevation-2);
+        }
+
+        /* M3 Tabs */
         .tabs {
             display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #ddd;
+            gap: 0;
+            border-bottom: 1px solid var(--md-sys-color-outline-variant);
+            margin-bottom: 24px;
         }
 
         .tab {
-            padding: 10px 20px;
-            background-color: #f0f0f0;
+            padding: 14px 20px;
+            background-color: transparent;
             border: none;
             cursor: pointer;
-            border-radius: 5px 5px 0 0;
             font-size: 14px;
+            font-weight: 500;
+            color: var(--md-sys-color-on-surface-variant);
+            position: relative;
+            transition: color 0.2s cubic-bezier(0.2, 0, 0, 1);
+            font-family: 'Roboto', sans-serif;
+        }
+
+        .tab::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background-color: var(--md-sys-color-primary);
+            transform: scaleX(0);
+            transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1);
         }
 
         .tab.active {
-            background-color: #2196F3;
-            color: white;
+            color: var(--md-sys-color-primary);
+        }
+
+        .tab.active::after {
+            transform: scaleX(1);
         }
 
         .tab:hover {
-            background-color: #e0e0e0;
-        }
-
-        .tab.active:hover {
-            background-color: #1976D2;
+            background-color: rgba(25, 118, 210, 0.08);
         }
 
         .tab-content {
@@ -133,74 +341,46 @@
             display: block;
         }
 
+        /* Category Card */
         .category-card {
-            background-color: #e3f2fd;
-            border: 2px solid #2196F3;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 15px;
+            background-color: var(--md-sys-color-primary-container);
+            color: var(--md-sys-color-on-primary-container);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
         }
 
         .category-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
 
         .category-title {
             font-size: 18px;
-            font-weight: bold;
-            color: #1565C0;
+            font-weight: 500;
         }
 
         .category-count {
-            background-color: #2196F3;
-            color: white;
-            padding: 5px 10px;
-            border-radius: 15px;
-            font-size: 14px;
+            background-color: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 500;
         }
 
         .category-pattern {
-            color: #666;
-            font-size: 14px;
-            margin-bottom: 10px;
-            font-family: monospace;
-        }
-
-        .subcategories {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 5px;
-            margin-top: 10px;
-        }
-
-        .subcategory-tag {
-            background-color: #90CAF9;
-            color: #0D47A1;
-            padding: 4px 10px;
-            border-radius: 12px;
             font-size: 12px;
-        }
-
-        .toggle-category {
-            background-color: #1976D2;
-            color: white;
-            border: none;
-            padding: 5px 15px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            margin-top: 10px;
-        }
-
-        .toggle-category:hover {
-            background-color: #1565C0;
+            font-family: 'Courier New', monospace;
+            color: var(--md-sys-color-on-primary-container);
+            opacity: 0.8;
+            margin-bottom: 12px;
         }
 
         .category-links {
-            margin-top: 10px;
+            margin-top: 12px;
             display: none;
         }
 
@@ -208,75 +388,232 @@
             display: block;
         }
 
-        .filter-container {
-            background-color: #f5f5f5;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
+        /* Link Item */
+        .link {
+            background-color: var(--md-sys-color-surface);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            box-shadow: var(--md-sys-elevation-1);
         }
 
-        .filter-input {
-            width: 300px;
-            padding: 8px;
+        .link-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .link-content strong {
+            display: block;
             font-size: 14px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            font-weight: 500;
+            color: var(--md-sys-color-on-surface);
+            margin-bottom: 4px;
+            word-wrap: break-word;
         }
 
-        .filter-label {
-            font-weight: bold;
-            margin-right: 10px;
-        }
-
-        .clear-filter-btn {
-            padding: 8px 15px;
-            background-color: #757575;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-left: 10px;
-        }
-
-        .clear-filter-btn:hover {
-            background-color: #616161;
-        }
-
-        .stats-badge {
-            background-color: #4CAF50;
-            color: white;
-            padding: 5px 10px;
-            border-radius: 12px;
+        .link-content a {
             font-size: 12px;
-            margin-left: 10px;
+            color: var(--md-sys-color-primary);
+            text-decoration: none;
+            word-break: break-all;
+        }
+
+        .link-content a:hover {
+            text-decoration: underline;
         }
 
         .link.hidden {
             display: none;
         }
+
+        /* Filter Container */
+        .filter-container {
+            background-color: var(--md-sys-color-surface-variant);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--md-sys-color-on-surface-variant);
+        }
+
+        .filter-input {
+            flex: 1;
+            min-width: 200px;
+            padding: 8px 12px;
+            font-size: 14px;
+            border: 1px solid var(--md-sys-color-outline);
+            border-radius: 4px;
+            background-color: var(--md-sys-color-surface);
+            color: var(--md-sys-color-on-surface);
+            font-family: 'Roboto', sans-serif;
+        }
+
+        .filter-input:focus {
+            outline: none;
+            border-color: var(--md-sys-color-primary);
+        }
+
+        /* Stats Badge */
+        .stats-badge {
+            background-color: var(--md-sys-color-tertiary-container);
+            color: var(--md-sys-color-on-tertiary-container);
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 500;
+            display: inline-block;
+            margin-left: 8px;
+        }
+
+        /* Spinner */
+        .spinner {
+            border: 4px solid var(--md-sys-color-surface-variant);
+            border-top: 4px solid var(--md-sys-color-primary);
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            animation: spin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-container {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .loading-text {
+            font-size: 20px;
+            font-weight: 400;
+            color: var(--md-sys-color-on-surface);
+            margin-bottom: 8px;
+        }
+
+        .loading-subtext {
+            font-size: 14px;
+            color: var(--md-sys-color-on-surface-variant);
+        }
+
+        /* Results Section */
+        .results-header {
+            margin-bottom: 24px;
+        }
+
+        .results-header h2 {
+            font-size: 28px;
+            font-weight: 400;
+            margin-bottom: 8px;
+            color: var(--md-sys-color-on-surface);
+        }
+
+        .results-header h3 {
+            font-size: 20px;
+            font-weight: 400;
+            margin-bottom: 12px;
+            color: var(--md-sys-color-on-surface-variant);
+        }
+
+        .results-stats {
+            font-size: 14px;
+            color: var(--md-sys-color-on-surface-variant);
+            line-height: 1.8;
+        }
+
+        .results-stats strong {
+            color: var(--md-sys-color-on-surface);
+        }
+
+        .results-stats a {
+            color: var(--md-sys-color-primary);
+            text-decoration: none;
+        }
+
+        .results-stats a:hover {
+            text-decoration: underline;
+        }
+
+        /* Error Message */
+        .error-message {
+            background-color: var(--md-sys-color-error);
+            color: var(--md-sys-color-on-error);
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 14px;
+        }
     </style>
 </head>
-
 <body>
-    <h1>Website Scraper</h1>
-    <div class="input-container">
-        <input type="text" id="urlInput" placeholder="Enter website URL" value="https://en.wikipedia.org/wiki/Special:Random">
-        <button onclick="scrape()">Scrape</button>
-    </div>
-    <div style="margin-bottom: 20px;">
-        <label style="cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
-            <input type="checkbox" id="thoroughMode" style="cursor: pointer; margin: 0; width: auto;">
-            <span style="font-size: 14px;">Thorough mode (slower, more links)</span>
-        </label>
+    <!-- Top App Bar -->
+    <div class="top-app-bar">
+        <h1 class="app-title">HyperlinkScraper</h1>
+       <div class="theme-switch">
+            <a href="https://github.com/Jazzboy2567" target="_blank" style="display: flex; align-items: center; gap: 8px; margin-right: 24px; color: var(--md-sys-color-on-surface); text-decoration: none; font-size: 14px; font-weight: 500;" title="Visit GitHub Profile">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                </svg>
+                <span>Jazzboy2567</span>
+            </a>
+            <label style="cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
+                <input type="checkbox" id="themeToggle" onchange="toggleTheme()">
+                <span class="theme-switch-label">Dark Mode</span>
+            </label>
+        </div>
     </div>
 
+    <!-- Main Container -->
     <div class="container">
+        <!-- Input Section - URL and Button on same line -->
+        <div class="input-group">
+            <div class="text-field">
+                <input type="text" id="urlInput" placeholder="Enter website URL" value="https://en.wikipedia.org/wiki/Special:Random">
+            </div>
+            <button class="button button-filled" onclick="scrape()">Scrape</button>
+        </div>
+
+        <label class="checkbox-container">
+            <input type="checkbox" id="enhancedSearch">
+            <span class="checkbox-label">Enhanced Search (slower, more links)</span>
+        </label>
+
+        <!-- Results Section -->
         <div id="results"></div>
     </div>
 
     <script>
         let currentPageUrl = '';
         let allLinksData = [];
+
+        // Theme toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+
+        // Load saved theme
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            document.getElementById('themeToggle').checked = savedTheme === 'dark';
+        });
 
         // Function to filter out resource files
         function isResourceFile(url) {
@@ -287,27 +624,27 @@
 
         async function scrape() {
             const url = document.getElementById('urlInput').value;
-            const thoroughMode = document.getElementById('thoroughMode').checked;
+            const enhancedSearch = document.getElementById('enhancedSearch').checked;
 
             if (!url) {
-                alert('Please enter a URL');
+                document.getElementById('results').innerHTML = '<div class="error-message">Please enter a URL</div>';
                 return;
             }
 
             currentPageUrl = url;
             const startTime = Date.now();
 
-            // Show nice loading animation
+            // Show loading animation
             document.getElementById('results').innerHTML = `
-                <div style="text-align: center; padding: 40px;">
+                <div class="loading-container">
                     <div class="spinner"></div>
-                    <h3>Scraping website...</h3>
-                    <p style="color: #666; font-size: 14px;">${thoroughMode ? 'Thorough mode: This may take 5-60 seconds' : 'This may take 5-20 seconds for dynamic sites'}</p>
+                    <div class="loading-text">Scraping website...</div>
+                    <div class="loading-subtext">${enhancedSearch ? 'Enhanced Search: This may take 5-60 seconds' : 'This may take 5-20 seconds for dynamic sites'}</div>
                 </div>
             `;
 
             try {
-                const apiUrl = '/api/scrape?url=' + encodeURIComponent(url) + (thoroughMode ? '&thorough=true' : '');
+                const apiUrl = '/api/scrape?url=' + encodeURIComponent(url) + (enhancedSearch ? '&thorough=true' : '');
                 const response = await fetch(apiUrl);
                 const data = await response.json();
 
@@ -317,10 +654,16 @@
                 data.timeTaken = timeTaken;
 
                 if (data.error) {
-                    document.getElementById('results').innerHTML = '<p style="color: red;">Error: ' + data.error + '</p>';
+                    document.getElementById('results').innerHTML = '<div class="error-message">Error: ' + data.error + '</div>';
                     return;
                 }
-
+                
+                // Update currentPageUrl to the actual scraped URL (for display only)
+                currentPageUrl = data.sourceUrl;
+                
+                // DO NOT change the user's input field - keep it as they typed it
+                // document.getElementById('urlInput').value = data.sourceUrl; // <-- REMOVED THIS LINE
+                
                 // Filter out resource files
                 const originalCount = data.externalLinks.length;
                 data.externalLinks = data.externalLinks.filter(link => !isResourceFile(link.url));
@@ -351,32 +694,32 @@
                 // Store links globally for access
                 window.currentLinks = data.externalLinks;
             } catch (error) {
-                document.getElementById('results').innerHTML = '<p style="color: red;">Error: ' + error.message + '</p>';
+                document.getElementById('results').innerHTML = '<div class="error-message">Error: ' + error.message + '</div>';
             }
         }
 
         function renderResults(data, titleFilter = '') {
-            let html = '<h2>Results</h2>';
-            html += '<h3>Page Title: ' + data.title + '</h3>';
-            html += '<p><strong>Source:</strong> <a href="' + data.sourceUrl + '" target="_blank">' + data.sourceUrl + '</a></p>';
-            html += '<p><strong>External Links:</strong> ' + data.stats.external;
+            let html = '<div class="results-header">';
+            html += '<h2>Results</h2>';
+            html += '<h3>' + data.title + '</h3>';
+            html += '<div class="results-stats">';
+            html += '<strong>Source:</strong> <a href="' + currentPageUrl + '" target="_blank">' + currentPageUrl + '</a><br>';
+            html += '<strong>External Links:</strong> ' + data.stats.external;
             if (data.stats.resourcesFiltered > 0) {
-                html += ' <span class="stats-badge">Filtered ' + data.stats.resourcesFiltered + ' resource files</span>';
+                html += ' <span class="stats-badge">Filtered ' + data.stats.resourcesFiltered + ' resources</span>';
             }
-            html += ' | <strong>Categories:</strong> ' + data.stats.categories;
-
-            // Add time taken display
+            html += '<br><strong>Categories:</strong> ' + data.stats.categories;
             if (data.timeTaken) {
                 html += ' | <strong>Time:</strong> ' + data.timeTaken + 's';
             }
-            html += '</p>';
+            html += '</div></div>';
 
             // Filter input
             html += '<div class="filter-container">';
-            html += '<span class="filter-label">Filter by title:</span>';
-            html += '<input type="text" class="filter-input" id="titleFilter" placeholder="Enter search term..." value="' + titleFilter + '" onkeyup="filterByTitle()">';
-            html += '<button class="clear-filter-btn" onclick="clearFilter()">Clear</button>';
-            html += '<span id="filterCount" style="margin-left: 15px; color: #666;"></span>';
+            html += '<span class="filter-label">Filter:</span>';
+            html += '<input type="text" class="filter-input" id="titleFilter" placeholder="Search links..." value="' + titleFilter + '" onkeyup="filterByTitle()">';
+            html += '<button class="button button-text" onclick="clearFilter()">Clear</button>';
+            html += '<span id="filterCount" class="body-small" style="color: var(--md-sys-color-on-surface-variant);"></span>';
             html += '</div>';
 
             // Tabs
@@ -395,7 +738,7 @@
                     html += '<div class="category-count">' + category.count + ' links</div>';
                     html += '</div>';
                     html += '<div class="category-pattern">/' + category.pattern + '</div>';
-                    html += '<button class="toggle-category" onclick="toggleCategory(' + catIndex + ')">Show Links</button>';
+                    html += '<button class="button button-tonal" onclick="toggleCategory(' + catIndex + ')">Show Links</button>';
                     html += '<div id="category-' + catIndex + '" class="category-links">';
 
                     category.links.forEach(link => {
@@ -406,7 +749,7 @@
                     html += '</div>';
                 });
             } else {
-                html += '<p>No categories found (need 3+ similar links to form a category)</p>';
+                html += '<div class="card"><p class="body-medium">No categories found (need 3+ similar links to form a category)</p></div>';
             }
             html += '</div>';
 
@@ -434,14 +777,12 @@
 
             const hiddenClass = matchesFilter ? '' : ' hidden';
 
-            let html = '<div class="link external-link' + hiddenClass + '" data-link-text="' + escapedText.toLowerCase() + '" data-link-url="' + escapedUrl.toLowerCase() + '">';
+            let html = '<div class="link' + hiddenClass + '" data-link-text="' + escapedText.toLowerCase() + '" data-link-url="' + escapedUrl.toLowerCase() + '">';
             html += '<div class="link-content">';
-            html += '<strong>' + escapedText + '</strong><br>';
+            html += '<strong>' + escapedText + '</strong>';
             html += '<a href="' + escapedUrl + '" target="_blank">' + escapedUrl + '</a>';
             html += '</div>';
-            html += '<div class="link-actions">';
-            html += '<button class="search-btn" onclick="searchLink(' + link.index + ')">Search</button>';
-            html += '</div>';
+            html += '<button class="button button-outlined" onclick="searchLink(' + link.index + ')">Search</button>';
             html += '</div>';
 
             return html;
@@ -471,7 +812,6 @@
         }
 
         function updateFilterCount() {
-            // Count unique links (only from All Links tab to avoid duplicates)
             const allLinksTab = document.getElementById('all-tab');
             const totalLinks = allLinksTab ? allLinksTab.querySelectorAll('.link').length : 0;
             const visibleLinks = allLinksTab ? allLinksTab.querySelectorAll('.link:not(.hidden)').length : 0;
@@ -520,5 +860,4 @@
         }
     </script>
 </body>
-
 </html>
