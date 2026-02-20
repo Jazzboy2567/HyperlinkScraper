@@ -1,20 +1,123 @@
 const http = require('http');
 const fs = require('fs');
-const { exec } = require('child_process');
 const cheerio = require('cheerio');
 
-// Add puppeteer - install with: npm install puppeteer
-let puppeteer;
+const {
+    scrapeEnhanced,
+    getCookieStats,
+    clearCookiesForDomain,
+    clearAllCookies,
+    clearProfileForDomain,
+    getOrCreateProfile
+} = require('./antidetect');
+
+// ── Cache ──────────────────────────────────────────────────────────────────
+const cache = {};
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const MAX_CACHE_SIZE = 100;
+
+function cacheSet(key, data) {
+    const keys = Object.keys(cache);
+    if (keys.length >= MAX_CACHE_SIZE) {
+        const oldest = keys.sort((a, b) => cache[a].cachedAt - cache[b].cachedAt)[0];
+        delete cache[oldest];
+    }
+    cache[key] = {
+        data,
+        cachedAt: Date.now(),
+        expiresAt: Date.now() + CACHE_TTL_MS
+    };
+}
+
+function cacheGet(key) {
+    const entry = cache[key];
+    if (!entry) return null;
+    if (Date.now() > entry.expiresAt) {
+        delete cache[key];
+        return null;
+    }
+    return entry;
+}
+
+// ── Last successful non-listing page per hostname ─────────────────────────
+// Used as the pre-visit referer for listing pages, since category pages
+// contain listing links and can be clicked from — unlike search pages.
+const lastSuccessfulPage = {};
+
+// ── Permanent seen-links store ─────────────────────────────────────────────
+const SEEN_LINKS_FILE = './seen_links.json';
+let seenLinks = new Set();
+
 try {
-    puppeteer = require('puppeteer');
+    const saved = JSON.parse(fs.readFileSync(SEEN_LINKS_FILE, 'utf8'));
+    seenLinks = new Set(saved);
+    console.log(`[SEEN] Loaded ${seenLinks.size} previously seen links`);
 } catch (e) {
-    console.log('Puppeteer not installed. Run: npm install puppeteer');
-    console.log('Will fall back to curl for all requests.');
+    console.log('[SEEN] No seen_links.json found, starting fresh');
+}
+
+function saveSeenLinks() {
+    fs.writeFileSync(SEEN_LINKS_FILE, JSON.stringify([...seenLinks]));
+}
+
+function normalizeUrl(url) {
+    try {
+        const u = new URL(url);
+        ['trackingId', 'refId', 'trk', 'position', 'pageNum', 'sessionId'].forEach(p => u.searchParams.delete(p));
+        return u.origin + u.pathname + (u.search || '');
+    } catch (e) {
+        return url;
+    }
+}
+
+function markLinksSeen(links) {
+    let addedCount = 0;
+    links.forEach(link => {
+        const key = normalizeUrl(link.url);
+        if (!seenLinks.has(key)) {
+            seenLinks.add(key);
+            addedCount++;
+        }
+    });
+    if (addedCount > 0) saveSeenLinks();
+    return addedCount;
+}
+
+function filterToNewLinks(links) {
+    return links.filter(link => !seenLinks.has(normalizeUrl(link.url)));
 }
 
 const port = process.env.PORT || 3000;
 const host = '0.0.0.0';
 
+// ============================================
+// PROXY CONFIGURATION
+// ============================================
+const PROXY_CONFIG = {
+    enabled: process.env.USE_PROXY === 'true',
+    url: process.env.PROXY_URL || null,
+    auth: process.env.PROXY_AUTH || null,
+    pool: process.env.PROXY_POOL ? process.env.PROXY_POOL.split(',').map(p => p.trim()) : [],
+    currentIndex: 0
+};
+
+function getProxy() {
+    if (!PROXY_CONFIG.enabled) return null;
+    if (PROXY_CONFIG.url) {
+        console.log('[PROXY] Using single proxy');
+        return PROXY_CONFIG.url;
+    }
+    if (PROXY_CONFIG.pool.length > 0) {
+        const proxy = PROXY_CONFIG.pool[PROXY_CONFIG.currentIndex];
+        PROXY_CONFIG.currentIndex = (PROXY_CONFIG.currentIndex + 1) % PROXY_CONFIG.pool.length;
+        console.log(`[PROXY] Using proxy ${PROXY_CONFIG.currentIndex}/${PROXY_CONFIG.pool.length}: ${proxy}`);
+        return proxy;
+    }
+    console.log('[PROXY] Proxy enabled but no proxy URL or pool configured!');
+    return null;
+}
+
+// ── Request Router ─────────────────────────────────────────────────────────
 const server = http.createServer(function (req, res) {
     if (req.url === '/health' || req.url === '/ping') {
         res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -23,17 +126,24 @@ const server = http.createServer(function (req, res) {
     }
     if (req.url.startsWith('/api/scrape')) {
         scrapeWebsite(req, res);
+    } else if (req.url.startsWith('/api/cache')) {
+        handleCache(req, res);
     } else if (req.url.startsWith('/api/analyze-content')) {
         analyzeContent(req, res);
+    } else if (req.url.startsWith('/api/cookies')) {
+        handleCookieManager(req, res);
+    } else if (req.url.startsWith('/api/profiles')) {
+        handleProfileManager(req, res);
     } else if (req.url === '/api/test') {
-        // Simple test endpoint for n8n
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
             status: 'ok',
             message: 'Scraper API is running!',
             endpoints: {
                 scrape: '/api/scrape?url=YOUR_URL',
-                analyze: '/api/analyze-content?url=YOUR_URL&keywords=keyword1,keyword2'
+                analyze: '/api/analyze-content?url=YOUR_URL&keywords=keyword1,keyword2',
+                cookies: '/api/cookies?action=list',
+                profiles: '/api/profiles?action=list'
             }
         }));
     } else if (req.url === '/' || req.url === '/index.html') {
@@ -68,413 +178,125 @@ server.listen(port, host, function (error) {
         if (!process.env.PORT) {
             console.log('Open http://localhost:' + port + ' in your browser');
         }
-        if (puppeteer) {
-            console.log('Puppeteer available - will use browser automation for protected sites');
-        } else {
-            console.log('Puppeteer not available - install with: npm install puppeteer');
-        }
     }
 });
 
-// Smart detection: try to identify if browser automation is needed
-function needsBrowserAutomation(url) {
-    try {
-        const urlObj = new URL(url);
-        const domain = urlObj.hostname.toLowerCase();
+// ── Cache Handler ──────────────────────────────────────────────────────────
+function handleCache(req, res) {
+    const urlParams = new URL(req.url, getBaseUrl(req));
+    const action = urlParams.searchParams.get('action') || 'list';
+    const lookupUrl = urlParams.searchParams.get('url');
 
-        // Known categories of sites that need browser automation
-        const patterns = {
-            // Social media - always JavaScript heavy
-            social: ['linkedin', 'facebook', 'instagram', 'twitter', 'tiktok', 'snapchat', 'pinterest'],
+    res.writeHead(200, { 'Content-Type': 'application/json' });
 
-            // Job boards - dynamic content loading
-            jobs: ['indeed', 'glassdoor', 'ziprecruiter', 'lensa', 'monster', 'dice', 'careerbuilder'],
-
-            // E-commerce - anti-scraping protection
-            ecommerce: ['amazon', 'ebay', 'walmart', 'target', 'bestbuy', 'shopify', 'etsy', 'alibaba'],
-
-            // Streaming/media - JavaScript rendered
-            media: ['youtube', 'netflix', 'hulu', 'spotify', 'twitch', 'vimeo', 'soundcloud'],
-
-            // Travel/booking - heavy JS + anti-bot
-            travel: ['airbnb', 'booking', 'expedia', 'hotels', 'tripadvisor', 'kayak'],
-
-            // High-security sites
-            protected: ['nike', 'adidas', 'supreme', 'ticketmaster', 'stubhub'],
-
-            // SPAs (Single Page Apps)
-            spa: ['reddit', 'discord', 'slack', 'notion', 'airtable', 'asana', 'trello', 'figma'],
-        };
-
-        // Check all patterns
-        for (const category in patterns) {
-            if (patterns[category].some(site => domain.includes(site))) {
-                console.log(`[DETECTION] ${domain} matched category: ${category} - using browser automation`);
-                return true;
-            }
-        }
-
-        // Check for anti-bot indicators in the domain itself
-        if (domain.includes('cloudflare') || domain.includes('captcha')) {
-            console.log(`[DETECTION] ${domain} has anti-bot protection - using browser automation`);
-            return true;
-        }
-
-        console.log(`[DETECTION] ${domain} - using curl (will fallback to Puppeteer if needed)`);
-        return false;
-
-    } catch (e) {
-        return false;
-    }
-}
-
-async function scrapeWithPuppeteerCore(url, stealthMode = false) {
-    console.log(`Using ${stealthMode ? 'enhanced stealth ' : ''}Puppeteer (headless browser) for:`, url);
-
-    const browser = await puppeteer.launch({
-        headless: 'new',
-        args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-blink-features=AutomationControlled',
-            '--disable-web-security',
-            '--disable-features=IsolateOrigins,site-per-process',
-            '--window-size=1920,1080',
-            '--disable-infobars',
-            '--disable-dev-shm-usage',
-            '--disable-accelerated-2d-canvas',
-            '--no-first-run',
-            '--no-zygote',
-            '--disable-gpu',
-        ]
-    });
-
-    try {
-        // Create a timeout promise
-        const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('Scraping timeout after 60 seconds')), 60000);
-        });
-
-        // Race between scraping and timeout
-        const result = await Promise.race([
-            scrapeWithTimeout(browser, url, stealthMode),
-            timeoutPromise
-        ]);
-
-        await browser.close();
-        return result;
-
-    } catch (error) {
-        await browser.close();
-        throw error;
-    }
-}
-
-// Separate the actual scraping logic
-async function scrapeWithTimeout(browser, url, stealthMode) {
-    const page = await browser.newPage();
-
-    // Advanced anti-detection measures
-    await page.evaluateOnNewDocument(() => {
-        Object.defineProperty(navigator, 'webdriver', { get: () => false });
-        Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
-        Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
-
-        window.chrome = { runtime: {}, loadTimes: function () { }, csi: function () { }, app: {} };
-
-        const originalQuery = window.navigator.permissions.query;
-        window.navigator.permissions.query = (parameters) => (
-            parameters.name === 'notifications' ?
-                Promise.resolve({ state: Notification.permission }) :
-                originalQuery(parameters)
-        );
-
-        window.navigator.__proto__.toString = () => '[object Navigator]';
-    });
-
-    await page.setViewport({ width: 1920, height: 1080 });
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36');
-
-    await page.setExtraHTTPHeaders({
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Referer': 'https://www.google.com/',
-        'sec-ch-ua': '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"',
-        'sec-ch-ua-mobile': '?0',
-        'sec-ch-ua-platform': '"Windows"',
-        'DNT': '1',
-        'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
-    });
-
-    console.log('Loading page...');
-    const timeout = stealthMode ? 90000 : 30000;
-
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout });
-
-    if (stealthMode) {
-        await page.waitForSelector('body', { timeout: 30000 });
+    if (action === 'list') {
+        const now = Date.now();
+        const entries = Object.entries(cache).map(([key, entry]) => ({
+            key,
+            cachedAt: new Date(entry.cachedAt),
+            expiresAt: new Date(entry.expiresAt),
+            ttlRemainingSeconds: Math.max(0, Math.round((entry.expiresAt - now) / 1000)),
+            linkCount: entry.data?.externalLinks?.length ?? 0
+        }));
+        return res.end(JSON.stringify({ count: entries.length, entries }));
     }
 
-    // Wait for initial content to load
-    console.log('Waiting for content to load...');
-    const initialWait = stealthMode ? 5000 : 1000;
-    await new Promise(resolve => setTimeout(resolve, initialWait));
-
-    if (!stealthMode) {
-        // Smart wait: keep checking if more links are appearing (normal mode only)
-        let previousLinkCount = 0;
-        let stableCount = 0;
-        const maxWaits = 3;
-
-        for (let i = 0; i < maxWaits; i++) {
-            const currentLinkCount = await page.evaluate(() => document.querySelectorAll('a').length);
-            console.log(`Content check ${i + 1}: Found ${currentLinkCount} links`);
-
-            // Early exit if we already have plenty of links
-            if (currentLinkCount > 50) {
-                console.log('Already found plenty of links (50+), skipping remaining checks');
-                break;
-            }
-
-            if (currentLinkCount === previousLinkCount && currentLinkCount > 0) {
-                stableCount++;
-                if (stableCount >= 1) {
-                    console.log('Link count stable, content appears fully loaded');
-                    break;
-                }
-            } else {
-                stableCount = 0;
-            }
-
-            previousLinkCount = currentLinkCount;
-            await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-
-        // Check for anti-bot challenges
-        const pageTitle = await page.title();
-        const bodyText = await page.evaluate(() => document.body.innerText);
-
-        if (bodyText.includes('Just a moment') ||
-            bodyText.includes('Checking your browser') ||
-            bodyText.includes('Cloudflare') ||
-            pageTitle.includes('Just a moment')) {
-            console.log('Challenge detected, waiting longer...');
-            await new Promise(resolve => setTimeout(resolve, 10000));
-        }
-
-        // Capture link count after smart wait
-        let linkCount = previousLinkCount;
-
-        // Only do additional dynamic content waiting if we saw growth during smart wait
-        if (previousLinkCount > 0 && linkCount > 0) {
-            const initialLinkCount = await page.evaluate(() => document.querySelectorAll('a').length);
-
-            // Check if links are still increasing
-            if (initialLinkCount > linkCount) {
-                console.log('Links increased during wait - checking for more dynamic content...');
-                const maxChecks = 3;
-                let stableChecks = 0;
-
-                for (let i = 0; i < maxChecks; i++) {
-                    await new Promise(resolve => setTimeout(resolve, 2000));
-                    const newLinkCount = await page.evaluate(() => document.querySelectorAll('a').length);
-                    console.log(`Dynamic check ${i + 1}: ${newLinkCount} links (was ${linkCount})`);
-
-                    if (newLinkCount > linkCount) {
-                        console.log('More links appeared, continuing to wait...');
-                        linkCount = newLinkCount;
-                        stableChecks = 0;
-                    } else {
-                        stableChecks++;
-                        if (stableChecks >= 2) {
-                            console.log('Link count stable, dynamic content loaded');
-                            break;
-                        }
-                    }
-                }
-            } else {
-                console.log('No link growth detected, skipping dynamic content wait');
-            }
-        }
+    if (!lookupUrl) {
+        return res.end(JSON.stringify({ error: 'url param required for this action' }));
     }
 
-    // Smart scrolling: only continue if new links appear
-    console.log('Scrolling to load dynamic content...');
-    let linksBeforeScroll = await page.evaluate(() => document.querySelectorAll('a').length);
+    const key = lookupUrl;
 
-    // Skip scrolling if we already have plenty of links
-    if (linksBeforeScroll > 100 && !stealthMode) {
-        console.log('Already have 100+ links, skipping scroll entirely');
-    } else {
-        for (let scrollPass = 0; scrollPass < 3; scrollPass++) {
-            console.log(`Scroll pass ${scrollPass + 1}/3`);
-
-            await page.evaluate(async () => {
-                await new Promise((resolve) => {
-                    let totalHeight = 0;
-                    const distance = 100;
-                    const timer = setInterval(() => {
-                        const scrollHeight = document.body.scrollHeight;
-                        window.scrollBy(0, distance);
-                        totalHeight += distance;
-
-                        if (totalHeight >= scrollHeight) {
-                            clearInterval(timer);
-                            resolve();
-                        }
-                    }, 100);
-                });
-            });
-
-            // Wait briefly after scrolling
-            const scrollWait = stealthMode ? 2000 : 1000;
-            await new Promise(resolve => setTimeout(resolve, scrollWait));
-
-            if (!stealthMode) {
-                // Check if scrolling loaded new links (normal mode only)
-                const linksAfterScroll = await page.evaluate(() => document.querySelectorAll('a').length);
-                console.log(`Links after scroll: ${linksAfterScroll} (was ${linksBeforeScroll})`);
-
-                if (linksAfterScroll === linksBeforeScroll) {
-                    console.log('No new links loaded, stopping scroll passes');
-                    break;
-                }
-
-                linksBeforeScroll = linksAfterScroll;
-            }
-        }
+    if (action === 'get') {
+        const entry = cacheGet(key);
+        if (!entry) return res.end(JSON.stringify({ hit: false, url: lookupUrl }));
+        return res.end(JSON.stringify({
+            hit: true,
+            cachedAt: new Date(entry.cachedAt),
+            expiresAt: new Date(entry.expiresAt),
+            ...entry.data
+        }));
     }
 
-    // Final wait
-    const finalWait = stealthMode ? 2000 : 500;
-    await new Promise(resolve => setTimeout(resolve, finalWait));
+    if (action === 'delete') {
+        const existed = !!cache[key];
+        delete cache[key];
+        return res.end(JSON.stringify({ deleted: existed, key }));
+    }
 
-    const html = await page.content();
-    const finalUrl = page.url();
-    console.log(`${stealthMode ? 'Stealth scrape' : 'Page loaded'} successfully, HTML length:`, html.length);
-    console.log('Final URL after redirects:', finalUrl);
+    if (action === 'clear') {
+        const count = Object.keys(cache).length;
+        Object.keys(cache).forEach(k => delete cache[k]);
+        return res.end(JSON.stringify({ cleared: count }));
+    }
 
-    return { html, finalUrl };
+    res.end(JSON.stringify({ error: 'Unknown action. Valid: list, get, delete, clear' }));
 }
 
-// Normal Puppeteer scraping
-async function scrapeWithPuppeteer(url) {
-    return scrapeWithPuppeteerCore(url, false);
+// ── Cookie Manager Handler ─────────────────────────────────────────────────
+function handleCookieManager(req, res) {
+    const urlParams = new URL(req.url, getBaseUrl(req));
+    const action = urlParams.searchParams.get('action') || 'list';
+    const domain = urlParams.searchParams.get('domain');
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+
+    if (action === 'list') {
+        return res.end(JSON.stringify(getCookieStats()));
+    }
+    if (action === 'clear' && domain) {
+        const cleared = clearCookiesForDomain(domain);
+        return res.end(JSON.stringify({ cleared, domain }));
+    }
+    if (action === 'clearAll') {
+        clearAllCookies();
+        return res.end(JSON.stringify({ cleared: true }));
+    }
+
+    res.end(JSON.stringify({ error: 'Unknown action. Valid: list, clear, clearAll' }));
 }
 
-// Stealth Puppeteer scraping
-async function scrapeWithPuppeteerStealth(url) {
-    return scrapeWithPuppeteerCore(url, true);
-}
+// ── Profile Manager Handler ────────────────────────────────────────────────
+function handleProfileManager(req, res) {
+    const urlParams = new URL(req.url, getBaseUrl(req));
+    const action = urlParams.searchParams.get('action') || 'list';
+    const domain = urlParams.searchParams.get('domain');
 
-// Scrape using curl (fast, but limited)
-async function scrapeWithCurl(url) {
-    console.log('Using curl for:', url);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
 
-    const curlCmd = buildCurlCommand(url);
-
-    return new Promise((resolve, reject) => {
-        exec(curlCmd, {
-            maxBuffer: 1024 * 1024 * 10,
-            timeout: 10000  // 10 second timeout for faster failure
-        }, (error, stdout, stderr) => {
-            if (error) {
-                reject(error);
-            } else {
-                resolve(stdout);
-            }
-        });
-    });
-}
-
-function generateReferrer() {
-    return 'https://www.google.com/';
-}
-
-function buildCurlCommand(url) {
-    const referrer = generateReferrer();
-    const escapedUrl = url.replace(/"/g, '\\"');
-    const escapedReferrer = referrer.replace(/"/g, '\\"');
-
-    const headers = [
-        `-H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"`,
-        `-H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"`,
-        `-H "Accept-Language: en-US,en;q=0.9"`,
-        `-H "Referer: ${escapedReferrer}"`,
-        `-H "DNT: 1"`,
-        `-H "Connection: keep-alive"`,
-        `-H "Upgrade-Insecure-Requests: 1"`,
-    ];
-
-    return `curl -L -s -k --max-time 10 "${escapedUrl}" ${headers.join(' ')}`;
-}
-
-function deduplicateLinks(links) {
-    const seen = new Set();
-    const uniqueLinks = [];
-
-    links.forEach(link => {
-        if (!seen.has(link.url)) {
-            seen.add(link.url);
-            uniqueLinks.push(link);
-        }
-    });
-
-    return uniqueLinks;
-}
-
-function filterUnwantedLinks(links) {
-    const unwantedExtensions = ['.css', '.js', '.json', '.xml', '.woff', '.woff2', '.ttf', '.eot', '.svg', '.ico'];
-
-    return links.filter(link => {
+    if (action === 'list') {
         try {
-            const url = new URL(link.url);
-            const pathname = url.pathname.toLowerCase();
-            const hasUnwantedExtension = unwantedExtensions.some(ext => pathname.endsWith(ext));
-            return !hasUnwantedExtension;
-        } catch (e) {
-            return true;
+            const profiles = JSON.parse(fs.readFileSync('./browser_profiles.json', 'utf8'));
+            return res.end(JSON.stringify(profiles));
+        } catch {
+            return res.end(JSON.stringify({}));
         }
-    });
+    }
+    if (action === 'reset' && domain) {
+        const cleared = clearProfileForDomain(domain);
+        return res.end(JSON.stringify({ cleared, domain }));
+    }
+    if (action === 'view' && domain) {
+        const profile = getOrCreateProfile(domain);
+        return res.end(JSON.stringify(profile));
+    }
+
+    res.end(JSON.stringify({ error: 'Unknown action. Valid: list, reset, view' }));
 }
 
+// ── Content Analysis ───────────────────────────────────────────────────────
 function extractOpenGraphData($) {
     const ogData = {};
-
-    // Extract Open Graph meta tags
     $('meta[property^="og:"]').each((i, elem) => {
         const property = $(elem).attr('property');
         const content = $(elem).attr('content');
-        if (property && content) {
-            const key = property.replace('og:', '');
-            ogData[key] = content;
-        }
+        if (property && content) ogData[property.replace('og:', '')] = content;
     });
-
-    // Extract Twitter Card meta tags as fallback
-    if (!ogData.title) {
-        const twitterTitle = $('meta[name="twitter:title"]').attr('content');
-        if (twitterTitle) ogData.title = twitterTitle;
-    }
-    if (!ogData.description) {
-        const twitterDesc = $('meta[name="twitter:description"]').attr('content');
-        if (twitterDesc) ogData.description = twitterDesc;
-    }
-    if (!ogData.image) {
-        const twitterImage = $('meta[name="twitter:image"]').attr('content');
-        if (twitterImage) ogData.image = twitterImage;
-    }
-
-    // Fallback to regular meta tags
-    if (!ogData.title) {
-        ogData.title = $('title').first().text() || $('h1').first().text();
-    }
-    if (!ogData.description) {
-        ogData.description = $('meta[name="description"]').attr('content');
-    }
-
+    if (!ogData.title) ogData.title = $('meta[name="twitter:title"]').attr('content');
+    if (!ogData.description) ogData.description = $('meta[name="twitter:description"]').attr('content');
+    if (!ogData.image) ogData.image = $('meta[name="twitter:image"]').attr('content');
+    if (!ogData.title) ogData.title = $('title').first().text() || $('h1').first().text();
+    if (!ogData.description) ogData.description = $('meta[name="description"]').attr('content');
     return ogData;
 }
 
@@ -493,28 +315,36 @@ async function analyzeContent(req, res) {
     console.log('[ANALYZE] Analyzing content:', url);
 
     try {
-        // Fetch the page
-        let html;
-        if (puppeteer && needsBrowserAutomation(url)) {
-            const result = await scrapeWithPuppeteer(url);
-            html = result.html;
-        } else {
-            html = await scrapeWithCurl(url);
-        }
+        let refererUrl = null;
+        try {
+            const u = new URL(url);
+            const hostname = u.hostname;
+            const ref = u.searchParams.get('ref') || '';
+            const isListing = u.pathname.startsWith('/listing/');
+            if (isListing && lastSuccessfulPage[hostname]) {
+                refererUrl = lastSuccessfulPage[hostname];
+            } else if (ref) {
+                const segment = ref.split(/[-_]/)[0];
+                refererUrl = segment && segment !== 'search' ? `${u.origin}/${segment}` : null;
+            }
+        } catch {}
 
-        const $ = cheerio.load(html);
+        const result = await scrapeEnhanced(url, {
+            humanBehavior: false,
+            useProfile: true,
+            retries: 1,
+            refererUrl
+        });
+
+        const $ = cheerio.load(result.html);
         const pageText = $('body').text().toLowerCase();
-
-        // Extract Open Graph data for preview
         const openGraph = extractOpenGraphData($);
+        const matchedKeywords = userKeywords.filter(kw => pageText.includes(kw));
 
-        // Find which keywords appear in the page
-        const matchedKeywords = userKeywords.filter(keyword =>
-            pageText.includes(keyword)
-        );
-
-        const analysis = {
-            matchedKeywords: matchedKeywords,
+        console.log('[ANALYZE] Matched:', matchedKeywords.length, 'of', userKeywords.length, 'keywords');
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+            matchedKeywords,
             totalKeywords: userKeywords.length,
             matchCount: matchedKeywords.length,
             preview: {
@@ -523,18 +353,34 @@ async function analyzeContent(req, res) {
                 image: openGraph.image,
                 url: openGraph.url || url
             }
-        };
-
-        console.log('[ANALYZE] Matched:', matchedKeywords.length, 'of', userKeywords.length, 'keywords');
-
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(analysis));
-
+        }));
     } catch (error) {
         console.error('[ANALYZE] Error:', error.message);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: error.message }));
     }
+}
+
+// ── Link Helpers ───────────────────────────────────────────────────────────
+function deduplicateLinks(links) {
+    const seen = new Set();
+    return links.filter(link => {
+        if (seen.has(link.url)) return false;
+        seen.add(link.url);
+        return true;
+    });
+}
+
+function filterUnwantedLinks(links) {
+    const unwanted = ['.css', '.js', '.json', '.xml', '.woff', '.woff2', '.ttf', '.eot', '.svg', '.ico'];
+    return links.filter(link => {
+        try {
+            const pathname = new URL(link.url).pathname.toLowerCase();
+            return !unwanted.some(ext => pathname.endsWith(ext));
+        } catch {
+            return true;
+        }
+    });
 }
 
 function categorizeLinks(links) {
@@ -546,346 +392,173 @@ function categorizeLinks(links) {
             const domain = urlObj.hostname;
             const pathParts = urlObj.pathname.split('/').filter(p => p.length > 0);
 
-            if (!domainGroups[domain]) {
-                domainGroups[domain] = {};
-            }
+            if (!domainGroups[domain]) domainGroups[domain] = {};
 
             for (let depth = 1; depth <= Math.min(3, pathParts.length); depth++) {
                 const pattern = pathParts.slice(0, depth).join('/');
-
-                if (!domainGroups[domain][pattern]) {
-                    domainGroups[domain][pattern] = [];
-                }
-
-                domainGroups[domain][pattern].push({
-                    ...link,
-                    index: index,
-                    pathParts: pathParts,
-                    depth: depth
-                });
+                if (!domainGroups[domain][pattern]) domainGroups[domain][pattern] = [];
+                domainGroups[domain][pattern].push({ ...link, index, pathParts, depth });
             }
-        } catch (e) {
-            // Skip invalid URLs
-        }
+        } catch { /* skip invalid URLs */ }
     });
 
     const categories = [];
     const usedLinks = new Set();
-
     const allPatterns = [];
+
     for (const domain in domainGroups) {
         for (const pattern in domainGroups[domain]) {
-            const groupLinks = domainGroups[domain][pattern];
-            const depth = pattern.split('/').length;
             allPatterns.push({
                 domain,
                 pattern,
-                depth,
-                links: groupLinks
+                depth: pattern.split('/').length,
+                links: domainGroups[domain][pattern]
             });
         }
     }
 
-    allPatterns.sort((a, b) => {
-        if (b.depth !== a.depth) return b.depth - a.depth;
-        return b.links.length - a.links.length;
-    });
+    allPatterns.sort((a, b) => b.depth !== a.depth ? b.depth - a.depth : b.links.length - a.links.length);
 
     for (const patternGroup of allPatterns) {
-        const availableLinks = patternGroup.links.filter(link => !usedLinks.has(link.index));
+        const availableLinks = patternGroup.links.filter(l => !usedLinks.has(l.index));
+        if (availableLinks.length < 3) continue;
 
-        if (availableLinks.length >= 3) {
-            const allPaths = availableLinks.map(l => l.pathParts);
-            const commonParts = [];
-            const maxLength = Math.min(...allPaths.map(p => p.length));
+        const allPaths = availableLinks.map(l => l.pathParts);
+        const commonParts = [];
+        const maxLength = Math.min(...allPaths.map(p => p.length));
 
-            for (let i = 0; i < maxLength; i++) {
-                const firstPart = allPaths[0][i];
-                if (allPaths.every(path => path[i] === firstPart)) {
-                    commonParts.push(firstPart);
-                } else {
-                    break;
-                }
-            }
+        for (let i = 0; i < maxLength; i++) {
+            if (allPaths.every(path => path[i] === allPaths[0][i])) {
+                commonParts.push(allPaths[0][i]);
+            } else break;
+        }
 
-            const uniqueSubcats = [...new Set(availableLinks.map(link => {
-                const varyingParts = link.pathParts.slice(commonParts.length);
-                return varyingParts.join('/') || 'root';
-            }))];
+        const uniqueSubcats = [...new Set(availableLinks.map(link => {
+            const varying = link.pathParts.slice(commonParts.length);
+            return varying.join('/') || 'root';
+        }))];
 
-            if (uniqueSubcats.length > 1 || availableLinks.length >= 5) {
-                categories.push({
-                    domain: patternGroup.domain,
-                    pattern: commonParts.join('/') || patternGroup.domain,
-                    commonPath: commonParts,
-                    count: availableLinks.length,
-                    links: availableLinks
-                });
-
-                availableLinks.forEach(link => usedLinks.add(link.index));
-            }
+        if (uniqueSubcats.length > 1 || availableLinks.length >= 5) {
+            categories.push({
+                domain: patternGroup.domain,
+                pattern: commonParts.join('/') || patternGroup.domain,
+                commonPath: commonParts,
+                count: availableLinks.length,
+                links: availableLinks
+            });
+            availableLinks.forEach(l => usedLinks.add(l.index));
         }
     }
 
-    categories.sort((a, b) => b.count - a.count);
-    return categories;
+    return categories.sort((a, b) => b.count - a.count);
 }
 
+// ── Main Scrape Handler ────────────────────────────────────────────────────
 async function scrapeWebsite(req, res) {
     console.log('Starting scraper...');
 
     const urlParams = new URL(req.url, getBaseUrl(req));
-    const url = urlParams.searchParams.get('url') || 'https://en.wikipedia.org/wiki/Cat';
-    const thoroughMode = urlParams.searchParams.get('thorough') === 'true';
+    const url = urlParams.searchParams.get('url') || 'https://en.wikipedia.org/wiki/Special:Random';
+    const bypassCache = urlParams.searchParams.get('nocache') === 'true';
 
-    console.log('Scraping URL:', url);
-    if (thoroughMode) {
-        console.log('[THOROUGH MODE] Will try multiple methods and use the one with most links');
+    // ── Cache check ────────────────────────────────────────────────────────
+    const inputCacheKey = url;
+    if (!bypassCache) {
+        const hit = cacheGet(inputCacheKey);
+        if (hit) {
+            console.log('[CACHE HIT]', url);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                ...hit.data,
+                cache: hit.data.cache ?? { newLinks: 0, totalSeen: seenLinks.size },
+                cached: true,
+                cachedAt: new Date(hit.cachedAt),
+                expiresAt: new Date(hit.expiresAt)
+            }));
+            return;
+        }
     }
 
+    console.log('Scraping URL:', url);
+
     try {
-        let html;
-        let method = 'unknown';
-        let finalUrl = url; // Default to original URL
+        // ── 60-second hard timeout ─────────────────────────────────────────
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('TIMEOUT_ERROR')), 60000)
+        );
 
-        // Wrap entire scraping logic with 60-second total timeout
-        const scrapeWithTotalTimeout = async () => {
-            if (thoroughMode) {
-                // THOROUGH MODE: Smart comparison to avoid unnecessary stealth mode
-                console.log('[THOROUGH] Trying curl first...');
-                let curlHtml = '';
-                let curlLinkCount = 0;
+        // ── Derive referer: use last known good page for this domain ───────
+        let refererUrl = null;
+        try {
+            const u = new URL(url);
+            const hostname = u.hostname;
+            const ref = u.searchParams.get('ref') || '';
+            const isListing = u.pathname.startsWith('/listing/');
 
-                try {
-                    curlHtml = await scrapeWithCurl(url);
-                    const $curl = cheerio.load(curlHtml);
-                    curlLinkCount = $curl('a').length;
-                    console.log('[THOROUGH] Curl found', curlLinkCount, 'links');
-                } catch (e) {
-                    console.log('[THOROUGH] Curl failed:', e.message);
-                }
-
-                if (puppeteer) {
-                    console.log('[THOROUGH] Trying Puppeteer (normal mode)...');
-                    let puppeteerHtml = '';
-                    let puppeteerLinkCount = 0;
-                    let puppeteerFinalUrl = url;
-
-                    try {
-                        const puppeteerResult = await scrapeWithPuppeteer(url);
-                        puppeteerHtml = puppeteerResult.html;
-                        puppeteerFinalUrl = puppeteerResult.finalUrl;
-                        const $puppeteer = cheerio.load(puppeteerHtml);
-                        puppeteerLinkCount = $puppeteer('a').length;
-                        console.log('[THOROUGH] Puppeteer found', puppeteerLinkCount, 'links');
-                    } catch (e) {
-                        console.log('[THOROUGH] Puppeteer failed:', e.message);
-                    }
-
-                    // Compare curl vs puppeteer
-                    const difference = Math.abs(puppeteerLinkCount - curlLinkCount);
-                    const maxCount = Math.max(puppeteerLinkCount, curlLinkCount);
-                    const percentageDiff = maxCount > 0 ? (difference / maxCount) * 100 : 0;
-
-                    console.log(`[THOROUGH] Difference: ${difference} links (${percentageDiff.toFixed(1)}%)`);
-
-                    // Only try stealth mode if there's a significant gap (>20% difference) AND neither method got many links
-                    if (percentageDiff > 20 && maxCount < 50) {
-                        console.log('[THOROUGH] Significant gap detected and low link count - trying stealth mode...');
-                        let stealthHtml = '';
-                        let stealthLinkCount = 0;
-                        let stealthFinalUrl = url;
-
-                        try {
-                            const stealthResult = await scrapeWithPuppeteerStealth(url);
-                            stealthHtml = stealthResult.html;
-                            stealthFinalUrl = stealthResult.finalUrl;
-                            const $stealth = cheerio.load(stealthHtml);
-                            stealthLinkCount = $stealth('a').length;
-                            console.log('[THOROUGH] Stealth Puppeteer found', stealthLinkCount, 'links');
-
-                            // Compare all three
-                            if (stealthLinkCount > puppeteerLinkCount && stealthLinkCount > curlLinkCount) {
-                                return { html: stealthHtml, method: 'puppeteer-stealth', finalUrl: stealthFinalUrl };
-                            } else if (puppeteerLinkCount >= curlLinkCount) {
-                                return { html: puppeteerHtml, method: 'puppeteer', finalUrl: puppeteerFinalUrl };
-                            } else {
-                                return { html: curlHtml, method: 'curl', finalUrl: url };
-                            }
-                        } catch (e) {
-                            console.log('[THOROUGH] Stealth failed:', e.message);
-                            // Use best of curl/puppeteer
-                            if (puppeteerLinkCount > curlLinkCount) {
-                                return { html: puppeteerHtml, method: 'puppeteer', finalUrl: puppeteerFinalUrl };
-                            } else if (curlLinkCount > 0) {
-                                return { html: curlHtml, method: 'curl', finalUrl: url };
-                            } else {
-                                return { html: puppeteerHtml, method: 'puppeteer', finalUrl: puppeteerFinalUrl };
-                            }
-                        }
-                    } else {
-                        console.log('[THOROUGH] Gap is small or link count is good - skipping stealth mode');
-                        // Use whichever got more links
-                        if (puppeteerLinkCount > curlLinkCount) {
-                            console.log('[THOROUGH] Using Puppeteer (', puppeteerLinkCount, 'vs', curlLinkCount, 'links)');
-                            return { html: puppeteerHtml, method: 'puppeteer', finalUrl: puppeteerFinalUrl };
-                        } else if (curlLinkCount > 0) {
-                            console.log('[THOROUGH] Using curl (', curlLinkCount, 'vs', puppeteerLinkCount, 'links)');
-                            return { html: curlHtml, method: 'curl', finalUrl: url };
-                        } else if (puppeteerLinkCount > 0) {
-                            console.log('[THOROUGH] Using Puppeteer - curl had no links');
-                            return { html: puppeteerHtml, method: 'puppeteer', finalUrl: puppeteerFinalUrl };
-                        } else {
-                            throw new Error('Both curl and Puppeteer failed to get any links');
-                        }
-                    }
-                } else {
-                    if (curlLinkCount > 0) {
-                        return { html: curlHtml, method: 'curl', finalUrl: url };
-                    } else {
-                        throw new Error('Curl found no links and Puppeteer not available');
-                    }
-                }
-            } else {
-                // NORMAL MODE: Use smart detection
-                const needsBrowser = needsBrowserAutomation(url);
-
-                if (needsBrowser && puppeteer) {
-                    console.log('[SKIPPING CURL] Site requires browser automation');
-
-                    try {
-                        console.log('[METHOD 1] Trying Puppeteer...');
-                        const puppeteerResult = await scrapeWithPuppeteer(url);
-                        console.log('[SUCCESS] Got HTML with Puppeteer, length:', puppeteerResult.html.length);
-                        return { html: puppeteerResult.html, method: 'puppeteer', finalUrl: puppeteerResult.finalUrl };
-                    } catch (puppeteerError) {
-                        console.log('[FAILED] Puppeteer failed:', puppeteerError.message);
-
-                        try {
-                            console.log('[METHOD 2] Trying Puppeteer with enhanced stealth...');
-                            const stealthResult = await scrapeWithPuppeteerStealth(url);
-                            console.log('[SUCCESS] Got HTML with stealth Puppeteer, length:', stealthResult.html.length);
-                            return { html: stealthResult.html, method: 'puppeteer-stealth', finalUrl: stealthResult.finalUrl };
-                        } catch (stealthError) {
-                            console.log('[FAILED] Stealth Puppeteer failed:', stealthError.message);
-                            throw new Error('All scraping methods failed. Site may have strong anti-bot protection.');
-                        }
-                    }
-                } else {
-                    try {
-                        console.log('[METHOD 1] Trying curl...');
-                        const curlHtml = await scrapeWithCurl(url);
-                        console.log('[SUCCESS] Got HTML with curl, length:', curlHtml.length);
-
-                        // CHECK IF CURL GOT ANY LINKS
-                        const $ = cheerio.load(curlHtml);
-                        const linkCount = $('a').length;
-                        console.log('[VALIDATION] Curl found', linkCount, 'links');
-
-                        if (linkCount === 0 || linkCount < 3) {
-                            console.log('[FALLBACK] Too few links from curl, trying Puppeteer...');
-
-                            if (puppeteer) {
-                                try {
-                                    const puppeteerResult = await scrapeWithPuppeteer(url);
-                                    const $puppeteer = cheerio.load(puppeteerResult.html);
-                                    const puppeteerLinkCount = $puppeteer('a').length;
-                                    console.log('[SUCCESS] Puppeteer found', puppeteerLinkCount, 'links');
-                                    return { html: puppeteerResult.html, method: 'puppeteer (auto-fallback)', finalUrl: puppeteerResult.finalUrl };
-                                } catch (puppeteerError) {
-                                    console.log('[WARNING] Puppeteer also failed, using curl result anyway');
-                                    return { html: curlHtml, method: 'curl', finalUrl: url };
-                                }
-                            } else {
-                                console.log('[WARNING] No Puppeteer available, using curl result with', linkCount, 'links');
-                                return { html: curlHtml, method: 'curl', finalUrl: url };
-                            }
-                        }
-
-                        return { html: curlHtml, method: 'curl', finalUrl: url };
-                    } catch (curlError) {
-                        console.log('[FAILED] Curl failed:', curlError.message);
-
-                        if (puppeteer) {
-                            try {
-                                console.log('[METHOD 2] Trying Puppeteer...');
-                                const puppeteerResult = await scrapeWithPuppeteer(url);
-                                console.log('[SUCCESS] Got HTML with Puppeteer, length:', puppeteerResult.html.length);
-                                return { html: puppeteerResult.html, method: 'puppeteer', finalUrl: puppeteerResult.finalUrl };
-                            } catch (puppeteerError) {
-                                console.log('[FAILED] Puppeteer failed:', puppeteerError.message);
-
-                                try {
-                                    console.log('[METHOD 3] Trying Puppeteer with enhanced stealth...');
-                                    const stealthResult = await scrapeWithPuppeteerStealth(url);
-                                    console.log('[SUCCESS] Got HTML with stealth Puppeteer, length:', stealthResult.html.length);
-                                    return { html: stealthResult.html, method: 'puppeteer-stealth', finalUrl: stealthResult.finalUrl };
-                                } catch (stealthError) {
-                                    console.log('[FAILED] Stealth Puppeteer failed:', stealthError.message);
-                                    throw new Error('All scraping methods failed. Site may have strong anti-bot protection.');
-                                }
-                            }
-                        } else {
-                            throw new Error('Curl failed and Puppeteer not available');
-                        }
-                    }
-                }
+            if (isListing && lastSuccessfulPage[hostname]) {
+                refererUrl = lastSuccessfulPage[hostname];
+            } else if (ref) {
+                const segment = ref.split(/[-_]/)[0];
+                refererUrl = segment && segment !== 'search' ? `${u.origin}/${segment}` : null;
             }
-        };
+            if (refererUrl) console.log(`[REFERER] Pre-visit: ${refererUrl}`);
+        } catch {}
 
-        // Race between scraping and 60-second timeout
-        const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('TIMEOUT_ERROR')), 60000);
+        const scrapeLogic = () => scrapeEnhanced(url, {
+            warmup: true,
+            humanBehavior: true,
+            useProfile: true,
+            retries: 2,
+            refererUrl
         });
 
-        const result = await Promise.race([scrapeWithTotalTimeout(), timeoutPromise]);
-        html = result.html;
-        method = result.method;
-        finalUrl = result.finalUrl || url;
+        const result = await Promise.race([scrapeLogic(), timeoutPromise]);
+        let { html, method, finalUrl = url } = result;
 
-        // If finalUrl wasn't set by Puppeteer, try to extract from HTML meta tags
+        // ── Resolve final URL from meta tags if not set by Puppeteer ──────
         if (finalUrl === url) {
-            const $ = cheerio.load(html);
-            
-            // Try canonical URL first
-            const canonical = $('link[rel="canonical"]').attr('href');
+            const $meta = cheerio.load(html);
+            const canonical = $meta('link[rel="canonical"]').attr('href');
+            const ogUrl = $meta('meta[property="og:url"]').attr('content');
             if (canonical) {
                 finalUrl = canonical;
-                console.log('[META] Found canonical URL:', finalUrl);
-            } else {
-                // Try og:url
-                const ogUrl = $('meta[property="og:url"]').attr('content');
-                if (ogUrl) {
-                    finalUrl = ogUrl;
-                    console.log('[META] Found og:url:', finalUrl);
-                }
+                console.log('[META] Canonical URL:', finalUrl);
+            } else if (ogUrl) {
+                finalUrl = ogUrl;
+                console.log('[META] og:url:', finalUrl);
             }
         }
 
-        // Validate we got actual content
         if (!html || html.length < 100) {
             throw new Error('Received empty or invalid response');
         }
 
-        console.log('HTML fetched, length:', html.length, 'using method:', method);
+        console.log('HTML length:', html.length, '| method:', method);
+
+        // ── Record this page as a good referer candidate for future scrapes ─
+        try {
+            const scraped = new URL(finalUrl);
+            if (!scraped.pathname.startsWith('/listing/')) {
+                lastSuccessfulPage[scraped.hostname] = finalUrl;
+                console.log(`[REFERER] Recorded last page: ${finalUrl}`);
+            }
+        } catch {}
 
         const $ = cheerio.load(html);
-
         let pageTitle = $('h1').first().text() || $('title').text() || '';
 
-        // If no meaningful title found, use domain as fallback
         if (!pageTitle.trim() || pageTitle.toLowerCase() === 'untitled') {
             try {
-                const urlObj = new URL(finalUrl);
-                pageTitle = `Content from ${urlObj.hostname}`;
-                console.log('[FALLBACK] Using domain as title:', pageTitle);
-            } catch (e) {
+                pageTitle = `Content from ${new URL(finalUrl).hostname}`;
+            } catch {
                 pageTitle = 'Untitled';
             }
         }
 
         console.log('Page title:', pageTitle);
 
+        // ── Extract all links ──────────────────────────────────────────────
+        const MAX_LINK_TEXT = 150; // hard cap — prevents grabbing entire comment bodies
         const allLinks = [];
 
         $('a').each((i, elem) => {
@@ -894,137 +567,148 @@ async function scrapeWebsite(req, res) {
 
             let text = '';
 
-            const isMeaningfulText = (str) => {
+            const isMeaningful = (str) => {
                 if (!str || str.length === 0) return false;
                 str = str.replace(/\s*\[[a-z0-9\-]+\]\s*/gi, '').trim();
-                if (!str || str.length === 0) return false;
+                if (!str) return false;
                 if (/^\d+$/.test(str)) return false;
                 if (/^\d{4}[A-Za-z]+[\d\.]+[A-Za-z]?[\d\.]*[A-Z]?$/i.test(str)) return false;
                 if (/^\d{4}-\d{3}[\dXx]$/.test(str)) return false;
                 if (/^10\.\d+\//.test(str)) return false;
                 if (/^[\d\.]+$/.test(str)) return false;
                 if (/[a-z]\d+$/i.test(str)) return false;
-                const useless = ['archived', 'archive', 'click here', 'read more', 'link', 'here', 'more'];
-                if (useless.includes(str.toLowerCase())) return false;
+                if (['archived', 'archive', 'click here', 'read more', 'link', 'here', 'more'].includes(str.toLowerCase())) return false;
                 if (str.length < 3 && !/[a-zA-Z]/.test(str)) return false;
                 return true;
             };
 
+            // 1. Prefer explicit title span
             const contentSpan = $(elem).find('span[role="text"], span[class*="title"], span[class*="Title"], div[class*="title"], div[class*="Title"]').first();
-            if (contentSpan.length > 0 && contentSpan.text().trim() && isMeaningfulText(contentSpan.text().trim())) {
+            if (contentSpan.length > 0 && isMeaningful(contentSpan.text().trim())) {
                 text = contentSpan.text().trim();
             }
-
-            if (!text && $(elem).attr('aria-label')) {
-                const ariaLabel = $(elem).attr('aria-label').trim();
-                const cleaned = ariaLabel.replace(/\s+\d+\s+(second|minute|hour|day|week|month|year)s?\s*$/i, '').trim();
-                if (isMeaningfulText(cleaned)) {
-                    text = cleaned;
-                }
+            // 2. aria-label
+            if (!text) {
+                const aria = ($(elem).attr('aria-label') || '').trim().replace(/\s+\d+\s+(second|minute|hour|day|week|month|year)s?\s*$/i, '').trim();
+                if (isMeaningful(aria)) text = aria;
             }
-
-            if (!text && $(elem).attr('title')) {
-                const titleText = $(elem).attr('title').trim();
-                if (isMeaningfulText(titleText)) {
-                    text = titleText;
-                }
+            // 3. title attribute
+            if (!text) {
+                const title = ($(elem).attr('title') || '').trim();
+                if (isMeaningful(title)) text = title;
             }
-
+            // 4. Direct text (strip noise children)
             if (!text) {
                 const $clone = $(elem).clone();
                 $clone.find('time, .timestamp, .date, .duration, .metadata, sup').remove();
-                const directText = $clone.text().trim();
-                if (isMeaningfulText(directText)) {
-                    text = directText;
-                }
+                const direct = $clone.text().trim();
+                if (isMeaningful(direct)) text = direct;
             }
-
+            // 5. Longest child text
             if (!text) {
-                let longestText = '';
-                $(elem).find('*').each((i, child) => {
-                    const childText = $(child).clone().children().remove().end().text().trim();
-                    if (isMeaningfulText(childText) && childText.length > longestText.length) {
-                        longestText = childText;
-                    }
+                let longest = '';
+                $(elem).find('*').each((_, child) => {
+                    const t = $(child).clone().children().remove().end().text().trim();
+                    if (isMeaningful(t) && t.length > longest.length) longest = t;
                 });
-                if (longestText) {
-                    text = longestText;
-                }
+                if (longest) text = longest;
             }
 
-            text = text.replace(/\s*\[[a-z0-9\-]+\]\s*/gi, '').trim();
-            text = text.replace(/^["']|["']$/g, '').trim();
+            text = text.replace(/\s*\[[a-z0-9\-]+\]\s*/gi, '').replace(/^["']|["']$/g, '').trim();
 
+            // ── Hard cap: truncate runaway text from comment/post bodies ──
+            if (text.length > MAX_LINK_TEXT) {
+                text = text.slice(0, MAX_LINK_TEXT).trimEnd() + '…';
+            }
+
+            // Resolve to absolute URL
             let absoluteUrl;
-
             if (href.startsWith('http://') || href.startsWith('https://')) {
                 absoluteUrl = href;
             } else if (href.startsWith('//')) {
                 absoluteUrl = 'https:' + href;
             } else if (href.startsWith('/')) {
                 try {
-                    const baseUrl = new URL(finalUrl);
-                    absoluteUrl = baseUrl.protocol + '//' + baseUrl.host + href;
-                } catch (e) {
-                    return;
-                }
+                    const base = new URL(finalUrl);
+                    absoluteUrl = base.protocol + '//' + base.host + href;
+                } catch { return; }
             } else {
                 return;
             }
 
-            // Use domain as fallback if no text found
             if (!text) {
-                try {
-                    const linkUrl = new URL(absoluteUrl);
-                    text = `Content from ${linkUrl.hostname}`;
-                } catch (e) {
-                    text = 'Link';
-                }
+                try { text = `Content from ${new URL(absoluteUrl).hostname}`; }
+                catch { text = 'Link'; }
             }
 
-            allLinks.push({
-                url: absoluteUrl,
-                text: text
-            });
+            allLinks.push({ url: absoluteUrl, text });
         });
 
-        console.log('Total links found (with duplicates):', allLinks.length);
+        console.log('Total links (with dupes):', allLinks.length);
 
         let externalLinks = deduplicateLinks(allLinks);
-        console.log('Unique external links:', externalLinks.length);
+        console.log('Unique links:', externalLinks.length);
 
         const beforeFilter = externalLinks.length;
         externalLinks = filterUnwantedLinks(externalLinks);
         const resourcesFiltered = beforeFilter - externalLinks.length;
-        console.log('After filtering resources:', externalLinks.length, '(removed', resourcesFiltered, 'resource files)');
+        console.log('After resource filter:', externalLinks.length, '(removed', resourcesFiltered, ')');
 
         const categories = categorizeLinks(externalLinks);
-        console.log('Categories found:', categories.length);
+        console.log('Categories:', categories.length);
 
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({
+        // ── New-link tracking ──────────────────────────────────────────────
+        const trulyNewLinks = filterToNewLinks(externalLinks);
+        const newUrlSet = new Set(trulyNewLinks.map(l => l.url));
+        externalLinks = externalLinks.map(link => ({ ...link, isNew: newUrlSet.has(link.url) }));
+        const addedCount = markLinksSeen(externalLinks);
+        console.log(`[SEEN] +${addedCount} new (${seenLinks.size} total)`);
+
+        const responseData = {
             title: pageTitle,
             sourceUrl: finalUrl,
-            externalLinks: externalLinks,
-            categories: categories,
+            externalLinks,
+            categories,
             stats: {
                 external: externalLinks.length,
                 categories: categories.length,
                 duplicatesRemoved: allLinks.length - beforeFilter,
-                resourcesFiltered: resourcesFiltered
+                resourcesFiltered,
+                newLinks: trulyNewLinks.length,
+                unchangedLinks: externalLinks.length - trulyNewLinks.length
             },
-            method: method,
+            cache: {
+                newLinks: trulyNewLinks.length,
+                totalSeen: seenLinks.size
+            },
+            method,
             timestamp: new Date()
-        }));
+        };
 
-    } catch (error) {
+        cacheSet(`${finalUrl}`, responseData);
+        if (finalUrl !== url) {
+            console.log(`[CACHE] Storing by finalUrl (redirected from ${url} → ${finalUrl})`);
+        } else {
+            cacheSet(inputCacheKey, responseData);
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(responseData));
+
+     } catch (error) {
         console.error('Scrape error:', error.message);
 
-        // Special message for timeout
         if (error.message === 'TIMEOUT_ERROR') {
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
-                error: 'Scraping timeout: This website took longer than 60 seconds to scrape. The site may have strong anti-bot protection, require authentication, or use heavy JavaScript rendering. Try enabling thorough mode, or if already enabled, this site may not be scrapable with traditional methods.'
+                error: 'Scraping timeout: This website took longer than 60 seconds. The site may have very strong anti-bot protection or require authentication.'
+            }));
+        } else if (error.message.startsWith('HARD_BLOCK:')) {
+            // Server-side TLS/IP block — no retry will help, surface a clear message
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                error: '🛡️ This page is protected by server-level bot detection (TLS fingerprinting or IP reputation check). Headless Chrome cannot bypass it. Other pages on this domain may still work fine.',
+                hardBlock: true
             }));
         } else {
             res.writeHead(500, { 'Content-Type': 'application/json' });

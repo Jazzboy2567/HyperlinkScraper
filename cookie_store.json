@@ -1,0 +1,447 @@
+{
+  "wikipedia.org": {
+    "version": "tough-cookie@6.0.0",
+    "storeType": "MemoryCookieStore",
+    "rejectPublicSuffixes": true,
+    "enableLooseMode": false,
+    "allowSpecialUseDomain": true,
+    "prefixSecurity": "silent",
+    "cookies": [
+      {
+        "key": "WMF-Last-Access-Global",
+        "value": "18-Feb-2026",
+        "expires": "2026-03-22T12:08:36.000Z",
+        "domain": "wikipedia.org",
+        "path": "/",
+        "secure": true,
+        "httpOnly": true,
+        "hostOnly": false,
+        "creation": "2026-02-18T00:06:27.930Z",
+        "lastAccessed": "2026-02-18T21:50:01.341Z"
+      },
+      {
+        "key": "WMF-Uniq",
+        "value": "IAqRe6UKSl4D5L4I1fbwUgMLAAEBAFvdElywTIKAH0qKuiMF3hMBqgTVa-JynezI",
+        "expires": "2027-02-18T00:31:03.000Z",
+        "domain": "wikipedia.org",
+        "path": "/",
+        "secure": true,
+        "httpOnly": true,
+        "hostOnly": false,
+        "creation": "2026-02-18T00:06:27.931Z",
+        "lastAccessed": "2026-02-18T21:50:01.341Z"
+      },
+      {
+        "key": "WMF-Last-Access",
+        "value": "18-Feb-2026",
+        "expires": "1969-12-31T23:59:59.000Z",
+        "domain": "en.wikipedia.org",
+        "path": "/",
+        "secure": true,
+        "httpOnly": true,
+        "hostOnly": false,
+        "creation": "2026-02-18T21:49:26.461Z",
+        "lastAccessed": "2026-02-18T21:50:01.341Z"
+      },
+      {
+        "key": "GeoIP",
+        "value": "US:WA:Redmond:47.67:-122.13:v4",
+        "expires": "1969-12-31T23:59:59.000Z",
+        "domain": "wikipedia.org",
+        "path": "/",
+        "secure": true,
+        "hostOnly": false,
+        "creation": "2026-02-18T21:49:35.629Z",
+        "lastAccessed": "2026-02-18T21:50:01.341Z"
+      },
+      {
+        "key": "WMF-DP",
+        "value": "cf3,b11",
+        "expires": "2026-02-19T00:00:00.000Z",
+        "domain": "en.wikipedia.org",
+        "path": "/",
+        "secure": true,
+        "httpOnly": true,
+        "hostOnly": false,
+        "creation": "2026-02-18T21:49:35.629Z",
+        "lastAccessed": "2026-02-18T21:50:01.341Z"
+      },
+      {
+        "key": "NetworkProbeLimit",
+        "value": "0.001",
+        "expires": "2026-02-18T22:49:35.000Z",
+        "domain": "en.wikipedia.org",
+        "path": "/",
+        "secure": true,
+        "hostOnly": false,
+        "creation": "2026-02-18T21:49:35.629Z",
+        "lastAccessed": "2026-02-18T21:50:01.341Z"
+      },
+      {
+        "key": "enwikimwuser-sessionId",
+        "value": "31e4db7ea5df69faaa92",
+        "expires": "1969-12-31T23:59:59.000Z",
+        "domain": "en.wikipedia.org",
+        "path": "/",
+        "hostOnly": false,
+        "creation": "2026-02-18T21:49:37.033Z",
+        "lastAccessed": "2026-02-18T21:50:01.341Z"
+      }
+    ]
+  },
+  "etsy.com": {
+    "version": "tough-cookie@6.0.0",
+    "storeType": "MemoryCookieStore",
+    "rejectPublicSuffixes": true,
+    "enableLooseMode": false,
+    "allowSpecialUseDomain": true,
+    "prefixSecurity": "silent",
+    "cookies": [
+      {
+        "key": "fve",
+        "value": "1771459029.0",
+        "expires": "2027-03-21T16:15:29.000Z",
+        "domain": "etsy.com",
+        "path": "/",
+        "secure": true,
+        "hostOnly": false,
+        "creation": "2026-02-18T00:08:24.123Z",
+        "lastAccessed": "2026-02-18T23:57:10.807Z"
+      },
+      {
+        "key": "uaid",
+        "value": "dDMrHIqtfkDSZU0b8mTPKwJMEX1jZACCzGmBV2F0tVJpYmaKkpWSWYSlgVlidoRvSGq5r3tkQGhmSEaFY2lZjktRvlItAwA.",
+        "expires": "2027-02-18T23:57:10.000Z",
+        "domain": "etsy.com",
+        "path": "/",
+        "secure": true,
+        "hostOnly": false,
+        "creation": "2026-02-18T00:08:24.124Z",
+        "lastAccessed": "2026-02-18T23:57:10.807Z"
+      },
+      {
+        "key": "user_prefs",
+        "value": "pC7VfY1Q1zPXf4s5H-6Ikwm3SPdjZACCzGmBV2F0tFJosIuSTl5pTo6OUmqebmiwko4SiACLGEEoXEQsAwA.",
+        "expires": "2027-02-18T23:57:09.000Z",
+        "domain": "etsy.com",
+        "path": "/",
+        "hostOnly": false,
+        "creation": "2026-02-18T00:08:24.124Z",
+        "lastAccessed": "2026-02-18T23:57:10.807Z"
+      },
+      {
+        "key": "_fbp",
+        "value": "fb.1.1771459029410.5136466885147936",
+        "expires": "2026-05-19T23:57:09.000Z",
+        "domain": "etsy.com",
+        "path": "/",
+        "secure": true,
+        "hostOnly": false,
+        "creation": "2026-02-18T00:08:24.124Z",
+        "lastAccessed": "2026-02-18T23:57:10.807Z"
+      },
+      {
+        "key": "exp_ebid",
+        "value": "m=0mUZ82K4KPBFMkQPHIJDbiGCL%2Bc%2F28b3OxuXfyoQyJQ%3D,v=1Tc_Cb6eNyGJgK1oMy-i2vskAi_f71V6",
+        "expires": "2026-04-19T23:57:10.000Z",
+        "domain": "etsy.com",
+        "path": "/",
+        "secure": true,
+        "hostOnly": false,
+        "creation": "2026-02-18T00:08:24.124Z",
+        "lastAccessed": "2026-02-18T23:57:10.807Z"
+      },
+      {
+        "key": "datadome",
+        "value": "4QPhP9QEUNElT543LQCrZyOeMqioUtPiIoSukK_nyljDRCQzVB75DJNpd2XfnnszdllJgjN6T25N6Wx1YAFyMz1xgyFS4o44yyPbE5LoEIg~PJYNGSJWh~K6cVQfZEhh",
+        "expires": "2027-02-18T23:57:10.000Z",
+        "domain": "etsy.com",
+        "path": "/",
+        "secure": true,
+        "hostOnly": false,
+        "creation": "2026-02-18T00:08:24.124Z",
+        "lastAccessed": "2026-02-18T23:57:10.807Z"
+      },
+      {
+        "key": "ua",
+        "value": "531227642bc86f3b5fd7103a0c0b4fd6",
+        "expires": "2027-02-18T23:57:10.000Z",
+        "domain": "www.etsy.com",
+        "path": "/",
+        "hostOnly": false,
+        "creation": "2026-02-18T08:17:30.350Z",
+        "lastAccessed": "2026-02-18T23:57:10.807Z"
+      }
+    ]
+  },
+  "linkedin.com": {
+    "version": "tough-cookie@6.0.0",
+    "storeType": "MemoryCookieStore",
+    "rejectPublicSuffixes": true,
+    "enableLooseMode": false,
+    "allowSpecialUseDomain": true,
+    "prefixSecurity": "silent",
+    "cookies": [
+      {
+        "key": "bcookie",
+        "value": "\"v=2&f4eb4427-31cf-492f-827e-81c9cf31ea04\"",
+        "expires": "2027-02-20T21:11:31.000Z",
+        "domain": "linkedin.com",
+        "path": "/",
+        "secure": true,
+        "hostOnly": false,
+        "creation": "2026-02-18T00:30:22.457Z",
+        "lastAccessed": "2026-02-20T21:11:43.490Z"
+      },
+      {
+        "key": "lidc",
+        "value": "\"b=OGST04:s=O:r=O:a=O:p=O:g=3688:u=1:x=1:i=1771621893:t=1771708293:v=2:sig=AQF1y6DSvE5X2uzNwd6xkg1uvmPirhwn\"",
+        "expires": "2026-02-21T21:11:31.000Z",
+        "domain": "linkedin.com",
+        "path": "/",
+        "secure": true,
+        "hostOnly": false,
+        "creation": "2026-02-18T00:30:22.457Z",
+        "lastAccessed": "2026-02-20T21:11:43.490Z"
+      },
+      {
+        "key": "dfpfpt",
+        "value": "2e87f7ceb8eb4d018cbeea0f883dacbf",
+        "expires": "2027-02-20T19:33:34.000Z",
+        "domain": "linkedin.com",
+        "path": "/",
+        "secure": true,
+        "httpOnly": true,
+        "hostOnly": false,
+        "creation": "2026-02-18T00:30:25.940Z",
+        "lastAccessed": "2026-02-20T21:11:31.696Z"
+      },
+      {
+        "key": "lang",
+        "value": "v=2&lang=en-us",
+        "expires": "1969-12-31T23:59:59.000Z",
+        "domain": "linkedin.com",
+        "path": "/",
+        "secure": true,
+        "hostOnly": false,
+        "creation": "2026-02-20T21:11:32.037Z",
+        "lastAccessed": "2026-02-20T21:11:43.490Z"
+      },
+      {
+        "key": "JSESSIONID",
+        "value": "ajax:4117026014468083217",
+        "expires": "1969-12-31T23:59:59.000Z",
+        "domain": "www.linkedin.com",
+        "path": "/",
+        "secure": true,
+        "hostOnly": false,
+        "creation": "2026-02-20T21:11:32.037Z",
+        "lastAccessed": "2026-02-20T21:11:43.490Z"
+      },
+      {
+        "key": "__cf_bm",
+        "value": "JwGuHfc4rRPtPdaHuVRbwPKH9dBQYDyIgDoMer2FJSk-1771621893-1.0.1.1-YxkxYUr3HTPcRRED1y6troSJbYmDXEtU5wAhLI6vOYVwwMPBIXIVQzj.VXFb98UwOOLt2oe1LzEhFcqqsyB8V4GrRc4o0dkrkbu3ZxZ7N48",
+        "expires": "2026-02-20T21:41:31.000Z",
+        "domain": "linkedin.com",
+        "path": "/",
+        "secure": true,
+        "httpOnly": true,
+        "hostOnly": false,
+        "creation": "2026-02-20T21:11:32.037Z",
+        "lastAccessed": "2026-02-20T21:11:43.490Z"
+      },
+      {
+        "key": "bscookie",
+        "value": "\"v=1&202602202111337eb1d22c-a3bd-4e45-8e6c-15ddc10498a1AQHacDXqyeZPTvJRodMzYURhsXiWYdn0\"",
+        "expires": "2027-02-20T21:11:31.000Z",
+        "domain": "www.linkedin.com",
+        "path": "/",
+        "secure": true,
+        "httpOnly": true,
+        "hostOnly": false,
+        "creation": "2026-02-20T21:11:32.037Z",
+        "lastAccessed": "2026-02-20T21:11:43.490Z"
+      }
+    ]
+  },
+  "vgen.co": {
+    "version": "tough-cookie@6.0.0",
+    "storeType": "MemoryCookieStore",
+    "rejectPublicSuffixes": true,
+    "enableLooseMode": false,
+    "allowSpecialUseDomain": true,
+    "prefixSecurity": "silent",
+    "cookies": [
+      {
+        "key": "_cfuvid",
+        "value": "UMXy8lwaxmYa7Uqg265VWzPMpAhpE5q60Fwimhxzzls-1771378104.0981364-1.0.1.1-D.Yf921VvK98mweJAXYhYjWHQvkbNOTgkJ0.kC9wuRA",
+        "expires": "1969-12-31T23:59:59.000Z",
+        "domain": "vgen.co",
+        "path": "/",
+        "secure": true,
+        "httpOnly": true,
+        "hostOnly": false,
+        "creation": "2026-02-18T01:28:25.569Z",
+        "lastAccessed": "2026-02-18T01:28:48.685Z"
+      }
+    ]
+  },
+  "esty.com": {
+    "version": "tough-cookie@6.0.0",
+    "storeType": "MemoryCookieStore",
+    "rejectPublicSuffixes": true,
+    "enableLooseMode": false,
+    "allowSpecialUseDomain": true,
+    "prefixSecurity": "silent",
+    "cookies": []
+  },
+  "producthunt.com": {
+    "version": "tough-cookie@6.0.0",
+    "storeType": "MemoryCookieStore",
+    "rejectPublicSuffixes": true,
+    "enableLooseMode": false,
+    "allowSpecialUseDomain": true,
+    "prefixSecurity": "silent",
+    "cookies": [
+      {
+        "key": "cf_clearance",
+        "value": "GdgQW.REBLFIVC7L1CHe0p7bQVg2iCQC_ZDWHntJ638-1771450471-1.2.1.1-DBUxolmLoM5aacLhAzzX5ZOTMEjdbWtdQ27g98aJQOniFCJrQk21HRoO216c0e7bY2V8PaJVQG4G25EKrQv15Ed4dEy4jOrbTNUk94UzmLtvSxi5v2hKpdJpMZdl49q1LVXvDnRtxXFSSow6fpyEw0NqQcDCld_TTeFpAqHhfpIq8KnbUrSfdgEOHJ6vlNpyYLA7.c4975bGhMnfy2e3kDpwJwq1IFugTLFPADFuNl8",
+        "expires": "2027-02-18T21:34:31.000Z",
+        "domain": "producthunt.com",
+        "path": "/",
+        "secure": true,
+        "httpOnly": true,
+        "hostOnly": false,
+        "creation": "2026-02-18T21:23:29.745Z",
+        "lastAccessed": "2026-02-18T21:34:48.434Z"
+      },
+      {
+        "key": "__cf_bm",
+        "value": "CHMFTHR0qFKllFHEU0BIK.ytM4P9Jtjvq73b2NU_RYM-1771450471.0910583-1.0.1.1-yRh_egLIkX5cc6pK.Yjflb0AJ6kcNLNYTgDB4QAe.jasT78HVDqIkeZakWolD4OCMBjz8AY5sTNXJkiK8foJ4usLYhufcUdIuyzk6fa7xHxQsU6BU0_bmXfjongnTpxu",
+        "expires": "2026-02-18T22:04:31.000Z",
+        "domain": "producthunt.com",
+        "path": "/",
+        "secure": true,
+        "httpOnly": true,
+        "hostOnly": false,
+        "creation": "2026-02-18T21:23:29.745Z",
+        "lastAccessed": "2026-02-18T21:34:48.434Z"
+      }
+    ]
+  },
+  "amazon.com": {
+    "version": "tough-cookie@6.0.0",
+    "storeType": "MemoryCookieStore",
+    "rejectPublicSuffixes": true,
+    "enableLooseMode": false,
+    "allowSpecialUseDomain": true,
+    "prefixSecurity": "silent",
+    "cookies": [
+      {
+        "key": "csm-hit",
+        "value": "tb:s-DNXS221FDG6X8ZRA8P5D|1771458923977&t:1771458924990&adb:adblk_no",
+        "expires": "2027-02-03T23:55:24.000Z",
+        "domain": "www.amazon.com",
+        "path": "/",
+        "hostOnly": false,
+        "creation": "2026-02-18T23:50:36.637Z",
+        "lastAccessed": "2026-02-18T23:55:37.287Z"
+      },
+      {
+        "key": "session-id",
+        "value": "146-9242895-9455240",
+        "expires": "2027-02-18T23:55:20.000Z",
+        "domain": "amazon.com",
+        "path": "/",
+        "secure": true,
+        "hostOnly": false,
+        "creation": "2026-02-18T23:50:36.637Z",
+        "lastAccessed": "2026-02-18T23:55:37.287Z"
+      },
+      {
+        "key": "session-id-time",
+        "value": "2082787201l",
+        "expires": "2027-02-18T23:55:20.000Z",
+        "domain": "amazon.com",
+        "path": "/",
+        "secure": true,
+        "hostOnly": false,
+        "creation": "2026-02-18T23:50:36.638Z",
+        "lastAccessed": "2026-02-18T23:55:37.287Z"
+      },
+      {
+        "key": "lc-main",
+        "value": "en_US",
+        "expires": "2027-02-18T23:55:20.000Z",
+        "domain": "amazon.com",
+        "path": "/",
+        "hostOnly": false,
+        "creation": "2026-02-18T23:50:36.638Z",
+        "lastAccessed": "2026-02-18T23:55:37.287Z"
+      },
+      {
+        "key": "i18n-prefs",
+        "value": "USD",
+        "expires": "2027-02-18T23:55:20.000Z",
+        "domain": "amazon.com",
+        "path": "/",
+        "hostOnly": false,
+        "creation": "2026-02-18T23:50:36.638Z",
+        "lastAccessed": "2026-02-18T23:55:37.287Z"
+      },
+      {
+        "key": "rxc",
+        "value": "AAAAAACnSR8o4zZd2rE",
+        "expires": "2026-02-19T23:55:37.000Z",
+        "domain": "www.amazon.com",
+        "path": "/",
+        "hostOnly": false,
+        "creation": "2026-02-18T23:50:47.152Z",
+        "lastAccessed": "2026-02-18T23:55:37.287Z"
+      },
+      {
+        "key": "ubid-main",
+        "value": "133-9552135-5015146",
+        "expires": "2027-02-18T23:55:20.000Z",
+        "domain": "amazon.com",
+        "path": "/",
+        "secure": true,
+        "hostOnly": false,
+        "creation": "2026-02-18T23:52:07.701Z",
+        "lastAccessed": "2026-02-18T23:55:37.287Z"
+      },
+      {
+        "key": "session-token",
+        "value": "0whc751QXCSXmM7v9xpcPhT94vYDblfxnjamxc2h3ZyvXqCzgdErpdjfATNCYrMhWGoAZcUaUQJvmlx4RoTk3D6bJfzDhwM9jCMKch8PLuiJzgrsAXYiR38fUJ2v5yX9bjm45fmt0nsxr3UONo/Eyams2Pjuh0Livoox/VTX6rRzPobzeOi90yuwCxGylDb16Gt2ywEqMPfMUA0PBlH436nVIRjVoQnKwx5BO3DfmI6dVVmhZa1ocGTCA+Oo/1vSuN7TCZ022aTmVjWDsP2OmH3tStm2brPV5kUbYGx3POiDjaiQjMtTJlceFAKlgzNXkZzAuRZiWX7gCjg17MUdGkFWWE9yuycR",
+        "expires": "2027-02-18T23:55:23.000Z",
+        "domain": "amazon.com",
+        "path": "/",
+        "secure": true,
+        "hostOnly": false,
+        "creation": "2026-02-18T23:52:07.701Z",
+        "lastAccessed": "2026-02-18T23:55:37.287Z"
+      },
+      {
+        "key": "aws-waf-token",
+        "value": "495e28e2-eb8d-4113-b820-472478cf7b3a:FAoAovSnRYYiAAAA:xTbb7X4OizoEldIH9Pp6GnxxSJdmrteVQQlrbCz4IWyBhGRuMZecVPsawCWdKoYiSdeG4zBWWIm1ck404/SJ+94QlibMi5h9s8nes293I2M5FaQ7ZWZ0tz9FXlpSI91wc0uRgk8Mc3+BHUlDM+lLTjSiBdjytkQqzEKdU1/wYNWa9QKYwM8YO0Kdghs2LJ5mLJ1iBWd3fLbcnAlwoOaQkLA4sKzPANhY8QK8Q3G0NZ7oSac=",
+        "expires": "1969-12-31T23:59:59.000Z",
+        "domain": "www.amazon.com",
+        "path": "/",
+        "secure": true,
+        "hostOnly": false,
+        "creation": "2026-02-18T23:53:01.312Z",
+        "lastAccessed": "2026-02-18T23:55:37.287Z"
+      },
+      {
+        "key": "skin",
+        "value": "noskin",
+        "expires": "1969-12-31T23:59:59.000Z",
+        "domain": "amazon.com",
+        "path": "/",
+        "hostOnly": false,
+        "creation": "2026-02-18T23:55:20.762Z",
+        "lastAccessed": "2026-02-18T23:55:37.287Z"
+      }
+    ]
+  }
+}

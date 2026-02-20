@@ -7,79 +7,59 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            /* M3 Light Theme Colors */
             --md-sys-color-primary: #1976D2;
             --md-sys-color-on-primary: #FFFFFF;
             --md-sys-color-primary-container: #D3E4FD;
             --md-sys-color-on-primary-container: #001C38;
-            
             --md-sys-color-secondary: #535E71;
             --md-sys-color-on-secondary: #FFFFFF;
             --md-sys-color-secondary-container: #D7E3F8;
             --md-sys-color-on-secondary-container: #101C2B;
-            
             --md-sys-color-tertiary: #6B5778;
             --md-sys-color-on-tertiary: #FFFFFF;
             --md-sys-color-tertiary-container: #F2DAFF;
             --md-sys-color-on-tertiary-container: #251431;
-            
             --md-sys-color-surface: #FDFBFF;
             --md-sys-color-surface-variant: #E1E2EC;
             --md-sys-color-on-surface: #1A1C1E;
             --md-sys-color-on-surface-variant: #44474E;
-            
             --md-sys-color-background: #FDFBFF;
             --md-sys-color-on-background: #1A1C1E;
-            
             --md-sys-color-outline: #74777F;
             --md-sys-color-outline-variant: #C4C6D0;
-            
             --md-sys-color-error: #BA1A1A;
             --md-sys-color-on-error: #FFFFFF;
-            
-            /* Elevation shadows */
-            --md-sys-elevation-1: 0px 1px 2px rgba(0, 0, 0, 0.3), 0px 1px 3px 1px rgba(0, 0, 0, 0.15);
-            --md-sys-elevation-2: 0px 1px 2px rgba(0, 0, 0, 0.3), 0px 2px 6px 2px rgba(0, 0, 0, 0.15);
-            --md-sys-elevation-3: 0px 4px 8px 3px rgba(0, 0, 0, 0.15), 0px 1px 3px rgba(0, 0, 0, 0.3);
+            --md-sys-elevation-1: 0px 1px 2px rgba(0,0,0,0.3), 0px 1px 3px 1px rgba(0,0,0,0.15);
+            --md-sys-elevation-2: 0px 1px 2px rgba(0,0,0,0.3), 0px 2px 6px 2px rgba(0,0,0,0.15);
+            --md-sys-elevation-3: 0px 4px 8px 3px rgba(0,0,0,0.15), 0px 1px 3px rgba(0,0,0,0.3);
         }
 
         [data-theme="dark"] {
-            /* M3 Dark Theme Colors */
             --md-sys-color-primary: #A4C9FF;
             --md-sys-color-on-primary: #00315C;
             --md-sys-color-primary-container: #2C5F8D;
             --md-sys-color-on-primary-container: #D3E4FD;
-            
             --md-sys-color-secondary: #BBC7DB;
             --md-sys-color-on-secondary: #253140;
             --md-sys-color-secondary-container: #3C4758;
             --md-sys-color-on-secondary-container: #D7E3F8;
-            
             --md-sys-color-tertiary: #D6BEE5;
             --md-sys-color-on-tertiary: #3B2948;
             --md-sys-color-tertiary-container: #533F5F;
             --md-sys-color-on-tertiary-container: #F2DAFF;
-            
             --md-sys-color-surface: #1A1C1E;
             --md-sys-color-surface-variant: #44474E;
             --md-sys-color-on-surface: #E2E2E5;
             --md-sys-color-on-surface-variant: #C4C6D0;
-            
             --md-sys-color-background: #1A1C1E;
             --md-sys-color-on-background: #E2E2E5;
-            
             --md-sys-color-outline: #8E9099;
             --md-sys-color-outline-variant: #44474E;
-            
             --md-sys-color-error: #FFB4AB;
             --md-sys-color-on-error: #690005;
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: 'Roboto', sans-serif;
@@ -89,7 +69,6 @@
             transition: background-color 0.3s cubic-bezier(0.2, 0, 0, 1);
         }
 
-        /* Typography Scale */
         .display-large { font-size: 57px; font-weight: 400; line-height: 64px; }
         .headline-large { font-size: 32px; font-weight: 400; line-height: 40px; }
         .headline-medium { font-size: 28px; font-weight: 400; line-height: 36px; }
@@ -103,14 +82,8 @@
         .label-large { font-size: 14px; font-weight: 500; line-height: 20px; letter-spacing: 0.1px; }
         .label-medium { font-size: 12px; font-weight: 500; line-height: 16px; letter-spacing: 0.5px; }
 
-        /* Container */
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 24px;
-        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
 
-        /* Top App Bar */
         .top-app-bar {
             background-color: var(--md-sys-color-surface);
             padding: 16px 24px;
@@ -123,34 +96,12 @@
             z-index: 100;
         }
 
-        .app-title {
-            font-size: 22px;
-            font-weight: 400;
-            color: var(--md-sys-color-on-surface);
-        }
+        .app-title { font-size: 22px; font-weight: 400; color: var(--md-sys-color-on-surface); }
 
-        /* Dark Mode Switch */
-        .theme-switch {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
+        .theme-switch { display: flex; align-items: center; gap: 12px; }
+        .theme-switch-label { font-size: 14px; font-weight: 500; color: var(--md-sys-color-on-surface); }
+        .theme-switch input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: var(--md-sys-color-primary); }
 
-        .theme-switch-label {
-            font-size: 14px;
-            font-weight: 500;
-            color: var(--md-sys-color-on-surface);
-        }
-
-        /* Simple Dark Mode Checkbox */
-        .theme-switch input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-            cursor: pointer;
-            accent-color: var(--md-sys-color-primary);
-        }
-
-        /* Input Group - URL and Button on same line */
         .input-group {
             display: flex;
             gap: 12px;
@@ -159,11 +110,8 @@
             width: 100%;
         }
 
-        .input-group .text-field {
-            flex: 1;
-        }
+        .input-group .text-field { flex: 1; }
 
-        /* M3 Text Field (Outlined) */
         .text-field input {
             width: 100%;
             padding: 16px;
@@ -182,11 +130,8 @@
             border-color: var(--md-sys-color-primary);
         }
 
-        .text-field input::placeholder {
-            color: var(--md-sys-color-on-surface-variant);
-        }
+        .text-field input::placeholder { color: var(--md-sys-color-on-surface-variant); }
 
-        /* M3 Buttons */
         .button {
             padding: 10px 24px;
             font-size: 14px;
@@ -202,75 +147,34 @@
             white-space: nowrap;
         }
 
-        /* Filled Button */
         .button-filled {
             background-color: var(--md-sys-color-primary);
             color: var(--md-sys-color-on-primary);
             box-shadow: var(--md-sys-elevation-1);
         }
+        .button-filled:hover { box-shadow: var(--md-sys-elevation-2); }
+        .button-filled:active { box-shadow: var(--md-sys-elevation-1); }
 
-        .button-filled:hover {
-            box-shadow: var(--md-sys-elevation-2);
-        }
-
-        .button-filled:active {
-            box-shadow: var(--md-sys-elevation-1);
-        }
-
-        /* Outlined Button */
         .button-outlined {
             background-color: transparent;
             color: var(--md-sys-color-primary);
             border: 1px solid var(--md-sys-color-outline);
         }
+        .button-outlined:hover { background-color: rgba(25, 118, 210, 0.08); }
 
-        .button-outlined:hover {
-            background-color: rgba(25, 118, 210, 0.08);
-        }
-
-        /* Tonal Button */
         .button-tonal {
             background-color: var(--md-sys-color-primary);
             color: var(--md-sys-color-on-primary);
         }
+        .button-tonal:hover { box-shadow: var(--md-sys-elevation-1); }
 
-        .button-tonal:hover {
-            box-shadow: var(--md-sys-elevation-1);
-        }
-
-        /* Text Button */
         .button-text {
             background-color: transparent;
             color: var(--md-sys-color-primary);
             padding: 10px 12px;
         }
+        .button-text:hover { background-color: rgba(25, 118, 210, 0.08); }
 
-        .button-text:hover {
-            background-color: rgba(25, 118, 210, 0.08);
-        }
-
-        /* Checkbox */
-        .checkbox-container {
-            display: inline-flex;
-            align-items: center;
-            gap: 12px;
-            cursor: pointer;
-            margin-bottom: 24px;
-        }
-
-        .checkbox-container input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-            cursor: pointer;
-            accent-color: var(--md-sys-color-primary);
-        }
-
-        .checkbox-label {
-            font-size: 14px;
-            color: var(--md-sys-color-on-surface);
-        }
-
-        /* M3 Card */
         .card {
             background-color: var(--md-sys-color-surface);
             border-radius: 12px;
@@ -279,16 +183,8 @@
             box-shadow: var(--md-sys-elevation-1);
             transition: box-shadow 0.2s cubic-bezier(0.2, 0, 0, 1);
         }
+        .card:hover { box-shadow: var(--md-sys-elevation-2); }
 
-        .card:hover {
-            box-shadow: var(--md-sys-elevation-2);
-        }
-
-        .card-elevated {
-            box-shadow: var(--md-sys-elevation-2);
-        }
-
-        /* M3 Tabs */
         .tabs {
             display: flex;
             gap: 0;
@@ -308,40 +204,22 @@
             transition: color 0.2s cubic-bezier(0.2, 0, 0, 1);
             font-family: 'Roboto', sans-serif;
         }
-
         .tab::after {
             content: '';
             position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
+            bottom: 0; left: 0; right: 0;
             height: 3px;
             background-color: var(--md-sys-color-primary);
             transform: scaleX(0);
             transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1);
         }
+        .tab.active { color: var(--md-sys-color-primary); }
+        .tab.active::after { transform: scaleX(1); }
+        .tab:hover { background-color: rgba(25, 118, 210, 0.08); }
 
-        .tab.active {
-            color: var(--md-sys-color-primary);
-        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
 
-        .tab.active::after {
-            transform: scaleX(1);
-        }
-
-        .tab:hover {
-            background-color: rgba(25, 118, 210, 0.08);
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        /* Category Card */
         .category-card {
             background-color: var(--md-sys-color-primary-container);
             color: var(--md-sys-color-on-primary-container);
@@ -349,6 +227,8 @@
             padding: 16px;
             margin-bottom: 12px;
         }
+        /* Hidden category cards when all their links are filtered out */
+        .category-card.filter-hidden { display: none; }
 
         .category-header {
             display: flex;
@@ -356,12 +236,7 @@
             align-items: center;
             margin-bottom: 8px;
         }
-
-        .category-title {
-            font-size: 18px;
-            font-weight: 500;
-        }
-
+        .category-title { font-size: 18px; font-weight: 500; }
         .category-count {
             background-color: var(--md-sys-color-primary);
             color: var(--md-sys-color-on-primary);
@@ -370,25 +245,15 @@
             font-size: 12px;
             font-weight: 500;
         }
-
         .category-pattern {
             font-size: 12px;
             font-family: 'Courier New', monospace;
-            color: var(--md-sys-color-on-primary-container);
             opacity: 0.8;
             margin-bottom: 12px;
         }
+        .category-links { margin-top: 12px; display: none; }
+        .category-links.show { display: block; }
 
-        .category-links {
-            margin-top: 12px;
-            display: none;
-        }
-
-        .category-links.show {
-            display: block;
-        }
-
-        /* Link Item */
         .link {
             background-color: var(--md-sys-color-surface);
             border-radius: 8px;
@@ -400,12 +265,7 @@
             gap: 12px;
             box-shadow: var(--md-sys-elevation-1);
         }
-
-        .link-content {
-            flex: 1;
-            min-width: 0;
-        }
-
+        .link-content { flex: 1; min-width: 0; }
         .link-content strong {
             display: block;
             font-size: 14px;
@@ -414,23 +274,15 @@
             margin-bottom: 4px;
             word-wrap: break-word;
         }
-
         .link-content a {
             font-size: 12px;
             color: var(--md-sys-color-primary);
             text-decoration: none;
             word-break: break-all;
         }
+        .link-content a:hover { text-decoration: underline; }
+        .link.hidden { display: none; }
 
-        .link-content a:hover {
-            text-decoration: underline;
-        }
-
-        .link.hidden {
-            display: none;
-        }
-
-        /* Filter Container */
         .filter-container {
             background-color: var(--md-sys-color-surface-variant);
             border-radius: 12px;
@@ -441,13 +293,7 @@
             align-items: center;
             flex-wrap: wrap;
         }
-
-        .filter-label {
-            font-size: 14px;
-            font-weight: 500;
-            color: var(--md-sys-color-on-surface-variant);
-        }
-
+        .filter-label { font-size: 14px; font-weight: 500; color: var(--md-sys-color-on-surface-variant); }
         .filter-input {
             flex: 1;
             min-width: 200px;
@@ -459,13 +305,8 @@
             color: var(--md-sys-color-on-surface);
             font-family: 'Roboto', sans-serif;
         }
+        .filter-input:focus { outline: none; border-color: var(--md-sys-color-primary); }
 
-        .filter-input:focus {
-            outline: none;
-            border-color: var(--md-sys-color-primary);
-        }
-
-        /* Stats Badge */
         .stats-badge {
             background-color: var(--md-sys-color-tertiary-container);
             color: var(--md-sys-color-on-tertiary-container);
@@ -477,7 +318,39 @@
             margin-left: 8px;
         }
 
-        /* Spinner */
+        .new-link-badge {
+            background-color: #4CAF50;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+            margin-left: 8px;
+            display: inline-block;
+        }
+
+        .link.is-new {
+            border-left: 4px solid #4CAF50;
+            background-color: rgba(76, 175, 80, 0.05);
+        }
+
+        .cache-banner {
+            background-color: var(--md-sys-color-secondary-container);
+            color: var(--md-sys-color-on-secondary-container);
+            border-radius: 12px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .cache-banner-icon { font-size: 20px; }
+        .cache-banner-new {
+            background-color: rgba(76, 175, 80, 0.1);
+            border-left: 4px solid #4CAF50;
+        }
+
         .spinner {
             border: 4px solid var(--md-sys-color-surface-variant);
             border-top: 4px solid var(--md-sys-color-primary);
@@ -487,68 +360,20 @@
             animation: spin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
             margin: 0 auto 20px;
         }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+        .loading-container { text-align: center; padding: 60px 20px; }
+        .loading-text { font-size: 20px; font-weight: 400; color: var(--md-sys-color-on-surface); margin-bottom: 8px; }
+        .loading-subtext { font-size: 14px; color: var(--md-sys-color-on-surface-variant); }
 
-        .loading-container {
-            text-align: center;
-            padding: 60px 20px;
-        }
+        .results-header { margin-bottom: 24px; }
+        .results-header h2 { font-size: 28px; font-weight: 400; margin-bottom: 8px; color: var(--md-sys-color-on-surface); }
+        .results-header h3 { font-size: 20px; font-weight: 400; margin-bottom: 12px; color: var(--md-sys-color-on-surface-variant); }
+        .results-stats { font-size: 14px; color: var(--md-sys-color-on-surface-variant); line-height: 1.8; }
+        .results-stats strong { color: var(--md-sys-color-on-surface); }
+        .results-stats a { color: var(--md-sys-color-primary); text-decoration: none; }
+        .results-stats a:hover { text-decoration: underline; }
 
-        .loading-text {
-            font-size: 20px;
-            font-weight: 400;
-            color: var(--md-sys-color-on-surface);
-            margin-bottom: 8px;
-        }
-
-        .loading-subtext {
-            font-size: 14px;
-            color: var(--md-sys-color-on-surface-variant);
-        }
-
-        /* Results Section */
-        .results-header {
-            margin-bottom: 24px;
-        }
-
-        .results-header h2 {
-            font-size: 28px;
-            font-weight: 400;
-            margin-bottom: 8px;
-            color: var(--md-sys-color-on-surface);
-        }
-
-        .results-header h3 {
-            font-size: 20px;
-            font-weight: 400;
-            margin-bottom: 12px;
-            color: var(--md-sys-color-on-surface-variant);
-        }
-
-        .results-stats {
-            font-size: 14px;
-            color: var(--md-sys-color-on-surface-variant);
-            line-height: 1.8;
-        }
-
-        .results-stats strong {
-            color: var(--md-sys-color-on-surface);
-        }
-
-        .results-stats a {
-            color: var(--md-sys-color-primary);
-            text-decoration: none;
-        }
-
-        .results-stats a:hover {
-            text-decoration: underline;
-        }
-
-        /* Error Message */
         .error-message {
             background-color: var(--md-sys-color-error);
             color: var(--md-sys-color-on-error);
@@ -559,26 +384,23 @@
     </style>
 </head>
 <body>
-    <!-- Top App Bar -->
     <div class="top-app-bar">
         <h1 class="app-title">HyperlinkScraper</h1>
-       <div class="theme-switch">
-            <a href="https://github.com/Jazzboy2567" target="_blank" style="display: flex; align-items: center; gap: 8px; margin-right: 24px; color: var(--md-sys-color-on-surface); text-decoration: none; font-size: 14px; font-weight: 500;" title="Visit GitHub Profile">
+        <div class="theme-switch">
+            <a href="https://github.com/Jazzboy2567" target="_blank" style="display:flex;align-items:center;gap:8px;margin-right:24px;color:var(--md-sys-color-on-surface);text-decoration:none;font-size:14px;font-weight:500;" title="Visit GitHub Profile">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
                 </svg>
                 <span>Jazzboy2567</span>
             </a>
-            <label style="cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
+            <label style="cursor:pointer;display:inline-flex;align-items:center;gap:8px;">
                 <input type="checkbox" id="themeToggle" onchange="toggleTheme()">
                 <span class="theme-switch-label">Dark Mode</span>
             </label>
         </div>
     </div>
 
-    <!-- Main Container -->
     <div class="container">
-        <!-- Input Section - URL and Button on same line -->
         <div class="input-group">
             <div class="text-field">
                 <input type="text" id="urlInput" placeholder="Enter website URL" value="https://en.wikipedia.org/wiki/Special:Random">
@@ -586,12 +408,6 @@
             <button class="button button-filled" onclick="scrape()">Scrape</button>
         </div>
 
-        <label class="checkbox-container">
-            <input type="checkbox" id="enhancedSearch">
-            <span class="checkbox-label">Enhanced Search (slower, more links)</span>
-        </label>
-
-        <!-- Results Section -->
         <div id="results"></div>
     </div>
 
@@ -599,23 +415,29 @@
         let currentPageUrl = '';
         let allLinksData = [];
 
-        // Theme toggle
+        // ── Theme ────────────────────────────────────────────────────────────
         function toggleTheme() {
             const html = document.documentElement;
-            const currentTheme = html.getAttribute('data-theme');
-            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            const newTheme = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
             html.setAttribute('data-theme', newTheme);
             localStorage.setItem('theme', newTheme);
         }
 
-        // Load saved theme
         window.addEventListener('DOMContentLoaded', () => {
             const savedTheme = localStorage.getItem('theme') || 'light';
             document.documentElement.setAttribute('data-theme', savedTheme);
             document.getElementById('themeToggle').checked = savedTheme === 'dark';
+
+            // Always scrape on Enter when the URL input is focused
+            const input = document.getElementById('urlInput');
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    scrape();
+                }
+            });
         });
 
-        // Function to filter out resource files
         function isResourceFile(url) {
             const resourceExtensions = ['.css', '.js', '.ico', '.svg', '.woff', '.woff2', '.ttf', '.eot'];
             const lowerUrl = url.toLowerCase();
@@ -624,7 +446,6 @@
 
         async function scrape() {
             const url = document.getElementById('urlInput').value;
-            const enhancedSearch = document.getElementById('enhancedSearch').checked;
 
             if (!url) {
                 document.getElementById('results').innerHTML = '<div class="error-message">Please enter a URL</div>';
@@ -634,64 +455,46 @@
             currentPageUrl = url;
             const startTime = Date.now();
 
-            // Show loading animation
             document.getElementById('results').innerHTML = `
                 <div class="loading-container">
                     <div class="spinner"></div>
                     <div class="loading-text">Scraping website...</div>
-                    <div class="loading-subtext">${enhancedSearch ? 'Enhanced Search: This may take 5-60 seconds' : 'This may take 5-20 seconds for dynamic sites'}</div>
+                    <div class="loading-subtext">This may take 5–30 seconds</div>
                 </div>
             `;
 
             try {
-                const apiUrl = '/api/scrape?url=' + encodeURIComponent(url) + (enhancedSearch ? '&thorough=true' : '');
+                const apiUrl = '/api/scrape?url=' + encodeURIComponent(url);
                 const response = await fetch(apiUrl);
                 const data = await response.json();
 
-                // Calculate time taken
                 const endTime = Date.now();
-                const timeTaken = ((endTime - startTime) / 1000).toFixed(2);
-                data.timeTaken = timeTaken;
+                data.timeTaken = ((endTime - startTime) / 1000).toFixed(2);
 
                 if (data.error) {
                     document.getElementById('results').innerHTML = '<div class="error-message">Error: ' + data.error + '</div>';
                     return;
                 }
-                
-                // Update currentPageUrl to the actual scraped URL (for display only)
+
                 currentPageUrl = data.sourceUrl;
-                
-                // DO NOT change the user's input field - keep it as they typed it
-                // document.getElementById('urlInput').value = data.sourceUrl; // <-- REMOVED THIS LINE
-                
-                // Filter out resource files
+
                 const originalCount = data.externalLinks.length;
                 data.externalLinks = data.externalLinks.filter(link => !isResourceFile(link.url));
                 const filteredCount = originalCount - data.externalLinks.length;
-
-                // Update stats
                 data.stats.external = data.externalLinks.length;
                 data.stats.resourcesFiltered = filteredCount;
 
-                // Re-index links after filtering
-                data.externalLinks.forEach((link, index) => {
-                    link.index = index;
-                });
+                data.externalLinks.forEach((link, index) => { link.index = index; });
 
-                // Update categories to remove resource files
                 data.categories.forEach(category => {
                     category.links = category.links.filter(link => !isResourceFile(link.url));
                     category.count = category.links.length;
                 });
-
-                // Remove empty categories
                 data.categories = data.categories.filter(cat => cat.count > 0);
                 data.stats.categories = data.categories.length;
 
                 allLinksData = data;
                 renderResults(data);
-
-                // Store links globally for access
                 window.currentLinks = data.externalLinks;
             } catch (error) {
                 document.getElementById('results').innerHTML = '<div class="error-message">Error: ' + error.message + '</div>';
@@ -701,10 +504,12 @@
         function renderResults(data, titleFilter = '') {
             let html = '<div class="results-header">';
             html += '<h2>Results</h2>';
-            html += '<h3>' + data.title + '</h3>';
+            // ── CHANGE: prefix title with "Title: " ──────────────────────
+            html += '<h3>Title: ' + data.title + '</h3>';
             html += '<div class="results-stats">';
             html += '<strong>Source:</strong> <a href="' + currentPageUrl + '" target="_blank">' + currentPageUrl + '</a><br>';
-            html += '<strong>External Links:</strong> ' + data.stats.external;
+            // ── CHANGE: "Links" instead of "External Links" ───────────────
+            html += '<strong>Links:</strong> ' + data.stats.external;
             if (data.stats.resourcesFiltered > 0) {
                 html += ' <span class="stats-badge">Filtered ' + data.stats.resourcesFiltered + ' resources</span>';
             }
@@ -714,101 +519,196 @@
             }
             html += '</div></div>';
 
-            // Filter input
+            if (data.cache?.newLinks > 0) {
+                html += '<div class="cache-banner cache-banner-new">';
+                html += '<span class="cache-banner-icon">🔄</span>';
+                html += '<div><strong>' + (data.cache?.newLinks ?? 0) + ' new links</strong> found since last scrape | ';
+                html += (data.cache?.totalSeen ?? 0) + ' total seen</div></div>';
+            } else {
+                html += '<div class="cache-banner">';
+                html += '<span class="cache-banner-icon">✅</span>';
+                html += '<div><strong>No new links</strong> since last scrape (' + (data.cache?.totalSeen ?? 0) + ' total seen)</div>';
+                html += '</div>';
+            }
+
             html += '<div class="filter-container">';
             html += '<span class="filter-label">Filter:</span>';
-            html += '<input type="text" class="filter-input" id="titleFilter" placeholder="Search links..." value="' + titleFilter + '" onkeyup="filterByTitle()">';
+            html += '<input type="text" class="filter-input" id="titleFilter" placeholder="Search links..." value="' + titleFilter + '" oninput="filterByTitle()">';
             html += '<button class="button button-text" onclick="clearFilter()">Clear</button>';
-            html += '<span id="filterCount" class="body-small" style="color: var(--md-sys-color-on-surface-variant);"></span>';
+            const newLinkCount = data.externalLinks.filter(l => l.isNew).length;
+            if (newLinkCount > 0) {
+                html += '<button class="button button-outlined" onclick="toggleNewLinksOnly()" id="newLinksToggle">Show Only New (' + newLinkCount + ')</button>';
+            }
+            html += '<span id="filterCount" class="body-small" style="color:var(--md-sys-color-on-surface-variant);"></span>';
             html += '</div>';
 
-            // Tabs
             html += '<div class="tabs">';
-            html += '<button class="tab active" onclick="switchTab(\'categories\')">Categories (' + data.stats.categories + ')</button>';
-            html += '<button class="tab" onclick="switchTab(\'all\')">All Links (' + data.stats.external + ')</button>';
+            html += '<button class="tab active" id="tab-categories" onclick="switchTab(\'categories\', event)">Categories (' + data.stats.categories + ')</button>';
+            html += '<button class="tab" id="tab-all" onclick="switchTab(\'all\', event)">All Links (' + data.stats.external + ')</button>';
             html += '</div>';
 
-            // Categories tab
             html += '<div id="categories-tab" class="tab-content active">';
             if (data.categories.length > 0) {
                 data.categories.forEach((category, catIndex) => {
-                    html += '<div class="category-card">';
+                    html += '<div class="category-card" id="cat-card-' + catIndex + '">';
                     html += '<div class="category-header">';
                     html += '<div class="category-title">' + category.domain + '</div>';
-                    html += '<div class="category-count">' + category.count + ' links</div>';
+                    html += '<div class="category-count" id="cat-count-' + catIndex + '">' + category.count + ' links</div>';
                     html += '</div>';
                     html += '<div class="category-pattern">/' + category.pattern + '</div>';
                     html += '<button class="button button-tonal" onclick="toggleCategory(' + catIndex + ')">Show Links</button>';
                     html += '<div id="category-' + catIndex + '" class="category-links">';
-
-                    category.links.forEach(link => {
-                        html += renderLink(link, titleFilter);
-                    });
-
-                    html += '</div>';
-                    html += '</div>';
+                    category.links.forEach(link => { html += renderLink(link, titleFilter); });
+                    html += '</div></div>';
                 });
             } else {
                 html += '<div class="card"><p class="body-medium">No categories found (need 3+ similar links to form a category)</p></div>';
             }
             html += '</div>';
 
-            // All links tab
             html += '<div id="all-tab" class="tab-content">';
-            data.externalLinks.forEach((link, index) => {
-                html += renderLink({ ...link, index }, titleFilter);
-            });
+            data.externalLinks.forEach((link, index) => { html += renderLink({ ...link, index }, titleFilter); });
             html += '</div>';
 
             document.getElementById('results').innerHTML = html;
-
-            // Update filter count
             updateFilterCount();
         }
 
         function renderLink(link, titleFilter = '') {
             const escapedText = link.text.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/^["']|["']$/g, '');
             const escapedUrl = link.url.replace(/"/g, '&quot;');
-
-            // Check if link matches filter
             const matchesFilter = !titleFilter ||
                 link.text.toLowerCase().includes(titleFilter.toLowerCase()) ||
                 link.url.toLowerCase().includes(titleFilter.toLowerCase());
-
             const hiddenClass = matchesFilter ? '' : ' hidden';
+            const newClass = link.isNew ? ' is-new' : '';
 
-            let html = '<div class="link' + hiddenClass + '" data-link-text="' + escapedText.toLowerCase() + '" data-link-url="' + escapedUrl.toLowerCase() + '">';
+            let html = '<div class="link' + hiddenClass + newClass + '" data-link-text="' + escapedText.toLowerCase() + '" data-link-url="' + escapedUrl.toLowerCase() + '">';
             html += '<div class="link-content">';
-            html += '<strong>' + escapedText + '</strong>';
+            html += '<strong>' + escapedText;
+            if (link.isNew) html += '<span class="new-link-badge">NEW</span>';
+            html += '</strong>';
             html += '<a href="' + escapedUrl + '" target="_blank">' + escapedUrl + '</a>';
             html += '</div>';
             html += '<button class="button button-outlined" onclick="searchLink(' + link.index + ')">Search</button>';
             html += '</div>';
-
             return html;
+        }
+
+        // ── Smart filter: auto-switch tabs & hide empty category cards ────
+        function applySmartTabBehavior() {
+            const allTab = document.getElementById('all-tab');
+            if (!allTab) return;
+
+            const visibleInAll = allTab.querySelectorAll('.link:not(.hidden)').length;
+
+            // Hide/show category cards based on whether they have visible links
+            document.querySelectorAll('.category-card').forEach((card, catIndex) => {
+                const catLinks = card.querySelectorAll('.link');
+                const visibleCatLinks = card.querySelectorAll('.link:not(.hidden)').length;
+                if (visibleCatLinks === 0) {
+                    card.classList.add('filter-hidden');
+                } else {
+                    card.classList.remove('filter-hidden');
+                }
+            });
+
+            const filterValue = document.getElementById('titleFilter')?.value || '';
+            const isNewOnlyMode = showingOnlyNew;
+            const isFiltering = filterValue.trim() !== '' || isNewOnlyMode;
+
+            if (isFiltering && visibleInAll <= 2) {
+                // Auto-switch to All Links tab
+                activateTab('all');
+            } else if (!isFiltering) {
+                // Filter cleared — restore Categories tab & remove filter-hidden
+                document.querySelectorAll('.category-card').forEach(card => {
+                    card.classList.remove('filter-hidden');
+                });
+                activateTab('categories');
+            }
+        }
+
+        function activateTab(tabName) {
+            const categoriesTab = document.getElementById('tab-categories');
+            const allTab = document.getElementById('tab-all');
+            const categoriesContent = document.getElementById('categories-tab');
+            const allContent = document.getElementById('all-tab');
+
+            if (!categoriesTab || !allTab) return;
+
+            if (tabName === 'all') {
+                categoriesTab.classList.remove('active');
+                allTab.classList.add('active');
+                categoriesContent.classList.remove('active');
+                allContent.classList.add('active');
+            } else {
+                allTab.classList.remove('active');
+                categoriesTab.classList.add('active');
+                allContent.classList.remove('active');
+                categoriesContent.classList.add('active');
+            }
         }
 
         function filterByTitle() {
             const filterValue = document.getElementById('titleFilter').value.toLowerCase();
-            const links = document.querySelectorAll('.link');
-
-            links.forEach(link => {
+            document.querySelectorAll('.link').forEach(link => {
                 const text = link.getAttribute('data-link-text') || '';
                 const url = link.getAttribute('data-link-url') || '';
-
                 if (text.includes(filterValue) || url.includes(filterValue)) {
                     link.classList.remove('hidden');
                 } else {
                     link.classList.add('hidden');
                 }
             });
-
+            applySmartTabBehavior();
             updateFilterCount();
         }
 
         function clearFilter() {
             document.getElementById('titleFilter').value = '';
-            filterByTitle();
+            // Un-hide all links first
+            document.querySelectorAll('.link').forEach(link => link.classList.remove('hidden'));
+            // If new-only mode is on, re-apply it; otherwise show all
+            if (showingOnlyNew) {
+                document.querySelectorAll('.link').forEach(link => {
+                    if (!link.classList.contains('is-new')) link.classList.add('hidden');
+                });
+            }
+            applySmartTabBehavior();
+            updateFilterCount();
+        }
+
+        let showingOnlyNew = false;
+        function toggleNewLinksOnly() {
+            showingOnlyNew = !showingOnlyNew;
+            const links = document.querySelectorAll('.link');
+            const button = document.getElementById('newLinksToggle');
+            if (showingOnlyNew) {
+                links.forEach(link => { if (!link.classList.contains('is-new')) link.classList.add('hidden'); });
+                button.textContent = 'Show All Links';
+                button.classList.remove('button-outlined');
+                button.classList.add('button-filled');
+            } else {
+                links.forEach(link => { link.classList.remove('hidden'); });
+                // Re-apply text filter if present
+                const filterValue = document.getElementById('titleFilter')?.value.toLowerCase() || '';
+                if (filterValue) {
+                    document.querySelectorAll('.link').forEach(link => {
+                        const text = link.getAttribute('data-link-text') || '';
+                        const url = link.getAttribute('data-link-url') || '';
+                        if (!text.includes(filterValue) && !url.includes(filterValue)) {
+                            link.classList.add('hidden');
+                        }
+                    });
+                }
+                const newCount = document.querySelectorAll('.link.is-new').length;
+                button.textContent = 'Show Only New (' + newCount + ')';
+                button.classList.remove('button-filled');
+                button.classList.add('button-outlined');
+            }
+            applySmartTabBehavior();
+            updateFilterCount();
         }
 
         function updateFilterCount() {
@@ -816,40 +716,22 @@
             const totalLinks = allLinksTab ? allLinksTab.querySelectorAll('.link').length : 0;
             const visibleLinks = allLinksTab ? allLinksTab.querySelectorAll('.link:not(.hidden)').length : 0;
             const filterCount = document.getElementById('filterCount');
-
             if (filterCount) {
-                if (visibleLinks < totalLinks) {
-                    filterCount.textContent = 'Showing ' + visibleLinks + ' of ' + totalLinks + ' links';
-                } else {
-                    filterCount.textContent = '';
-                }
+                filterCount.textContent = visibleLinks < totalLinks ? 'Showing ' + visibleLinks + ' of ' + totalLinks + ' links' : '';
             }
         }
 
-        function switchTab(tabName) {
-            // Update tab buttons
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            event.target.classList.add('active');
-
-            // Update tab content
-            document.querySelectorAll('.tab-content').forEach(content => {
-                content.classList.remove('active');
-            });
+        function switchTab(tabName, event) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            if (event && event.target) event.target.classList.add('active');
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
             document.getElementById(tabName + '-tab').classList.add('active');
         }
 
         function toggleCategory(index) {
             const categoryLinks = document.getElementById('category-' + index);
             categoryLinks.classList.toggle('show');
-
-            const button = event.target;
-            if (categoryLinks.classList.contains('show')) {
-                button.textContent = 'Hide Links';
-            } else {
-                button.textContent = 'Show Links';
-            }
+            event.target.textContent = categoryLinks.classList.contains('show') ? 'Hide Links' : 'Show Links';
         }
 
         function searchLink(index) {

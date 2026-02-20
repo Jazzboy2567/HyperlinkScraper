@@ -1,0 +1,86 @@
+{
+  "wikipedia.org": {
+    "domain": "wikipedia.org",
+    "screenWidth": 1440,
+    "screenHeight": 900,
+    "timezone": "America/Los_Angeles",
+    "chromeVersion": "122",
+    "canvasNoiseSeed": 904,
+    "hardwareConcurrency": 8,
+    "deviceMemory": 4,
+    "platform": "Win32",
+    "createdAt": "2026-02-18T00:06:14.448Z"
+  },
+  "etsy.com": {
+    "domain": "etsy.com",
+    "screenWidth": 1536,
+    "screenHeight": 864,
+    "timezone": "America/Denver",
+    "chromeVersion": "123",
+    "canvasNoiseSeed": 439,
+    "hardwareConcurrency": 4,
+    "deviceMemory": 8,
+    "platform": "Win32",
+    "createdAt": "2026-02-18T00:08:13.679Z"
+  },
+  "linkedin.com": {
+    "domain": "linkedin.com",
+    "screenWidth": 1366,
+    "screenHeight": 768,
+    "timezone": "Europe/Paris",
+    "chromeVersion": "124",
+    "canvasNoiseSeed": 568,
+    "hardwareConcurrency": 12,
+    "deviceMemory": 4,
+    "platform": "Win32",
+    "createdAt": "2026-02-18T00:30:10.011Z"
+  },
+  "vgen.co": {
+    "domain": "vgen.co",
+    "screenWidth": 1366,
+    "screenHeight": 768,
+    "timezone": "Europe/London",
+    "chromeVersion": "122",
+    "canvasNoiseSeed": 373,
+    "hardwareConcurrency": 4,
+    "deviceMemory": 4,
+    "platform": "Win32",
+    "createdAt": "2026-02-18T01:28:10.364Z"
+  },
+  "esty.com": {
+    "domain": "esty.com",
+    "screenWidth": 1920,
+    "screenHeight": 1080,
+    "timezone": "America/Chicago",
+    "chromeVersion": "123",
+    "canvasNoiseSeed": 616,
+    "hardwareConcurrency": 16,
+    "deviceMemory": 8,
+    "platform": "Win32",
+    "createdAt": "2026-02-18T05:17:58.211Z"
+  },
+  "producthunt.com": {
+    "domain": "producthunt.com",
+    "screenWidth": 1440,
+    "screenHeight": 900,
+    "timezone": "America/New_York",
+    "chromeVersion": "122",
+    "canvasNoiseSeed": 725,
+    "hardwareConcurrency": 8,
+    "deviceMemory": 4,
+    "platform": "Win32",
+    "createdAt": "2026-02-18T21:23:14.732Z"
+  },
+  "amazon.com": {
+    "domain": "amazon.com",
+    "screenWidth": 2560,
+    "screenHeight": 1440,
+    "timezone": "Europe/Paris",
+    "chromeVersion": "122",
+    "canvasNoiseSeed": 992,
+    "hardwareConcurrency": 8,
+    "deviceMemory": 8,
+    "platform": "Win32",
+    "createdAt": "2026-02-18T23:50:26.068Z"
+  }
+}
