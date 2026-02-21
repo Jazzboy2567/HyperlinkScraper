@@ -184,25 +184,25 @@
     "cookies": [
       {
         "key": "bcookie",
-        "value": "\"v=2&f4eb4427-31cf-492f-827e-81c9cf31ea04\"",
-        "expires": "2027-02-20T21:11:31.000Z",
+        "value": "\"v=2&7bfe7676-d857-4b9b-86b6-58479ac404e3\"",
+        "expires": "2027-02-21T19:00:23.000Z",
         "domain": "linkedin.com",
         "path": "/",
         "secure": true,
         "hostOnly": false,
         "creation": "2026-02-18T00:30:22.457Z",
-        "lastAccessed": "2026-02-20T21:11:43.490Z"
+        "lastAccessed": "2026-02-21T19:00:37.005Z"
       },
       {
         "key": "lidc",
-        "value": "\"b=OGST04:s=O:r=O:a=O:p=O:g=3688:u=1:x=1:i=1771621893:t=1771708293:v=2:sig=AQF1y6DSvE5X2uzNwd6xkg1uvmPirhwn\"",
-        "expires": "2026-02-21T21:11:31.000Z",
+        "value": "\"b=TGST04:s=T:r=T:a=T:p=T:g=3618:u=1:x=1:i=1771700423:t=1771786823:v=2:sig=AQGZhYbO7Y6Ot5TOyQ8RHtdjIDU3qExy\"",
+        "expires": "2026-02-22T19:00:23.000Z",
         "domain": "linkedin.com",
         "path": "/",
         "secure": true,
         "hostOnly": false,
         "creation": "2026-02-18T00:30:22.457Z",
-        "lastAccessed": "2026-02-20T21:11:43.490Z"
+        "lastAccessed": "2026-02-21T19:00:37.005Z"
       },
       {
         "key": "dfpfpt",
@@ -214,7 +214,19 @@
         "httpOnly": true,
         "hostOnly": false,
         "creation": "2026-02-18T00:30:25.940Z",
-        "lastAccessed": "2026-02-20T21:11:31.696Z"
+        "lastAccessed": "2026-02-21T19:00:23.311Z"
+      },
+      {
+        "key": "bscookie",
+        "value": "\"v=1&202602202111337eb1d22c-a3bd-4e45-8e6c-15ddc10498a1AQHacDXqyeZPTvJRodMzYURhsXiWYdn0\"",
+        "expires": "2027-02-21T19:00:23.000Z",
+        "domain": "www.linkedin.com",
+        "path": "/",
+        "secure": true,
+        "httpOnly": true,
+        "hostOnly": false,
+        "creation": "2026-02-20T21:11:32.037Z",
+        "lastAccessed": "2026-02-21T19:00:37.005Z"
       },
       {
         "key": "lang",
@@ -224,43 +236,31 @@
         "path": "/",
         "secure": true,
         "hostOnly": false,
-        "creation": "2026-02-20T21:11:32.037Z",
-        "lastAccessed": "2026-02-20T21:11:43.490Z"
+        "creation": "2026-02-21T19:00:23.704Z",
+        "lastAccessed": "2026-02-21T19:00:37.005Z"
       },
       {
         "key": "JSESSIONID",
-        "value": "ajax:4117026014468083217",
+        "value": "ajax:3178505911748616357",
         "expires": "1969-12-31T23:59:59.000Z",
         "domain": "www.linkedin.com",
         "path": "/",
         "secure": true,
         "hostOnly": false,
-        "creation": "2026-02-20T21:11:32.037Z",
-        "lastAccessed": "2026-02-20T21:11:43.490Z"
+        "creation": "2026-02-21T19:00:23.704Z",
+        "lastAccessed": "2026-02-21T19:00:37.005Z"
       },
       {
         "key": "__cf_bm",
-        "value": "JwGuHfc4rRPtPdaHuVRbwPKH9dBQYDyIgDoMer2FJSk-1771621893-1.0.1.1-YxkxYUr3HTPcRRED1y6troSJbYmDXEtU5wAhLI6vOYVwwMPBIXIVQzj.VXFb98UwOOLt2oe1LzEhFcqqsyB8V4GrRc4o0dkrkbu3ZxZ7N48",
-        "expires": "2026-02-20T21:41:31.000Z",
+        "value": "x1QsNEomCA7RZH.By73YklHgk5O5OjOALnmfF4uH0qM-1771700423-1.0.1.1-pYLz2_05PZX0NYNXwOXDtzsfNDnG3KJqzipRwjUo6MJ_tEXjW13L8vwPqPdeaxDgqFeCIxNFSJdGxj0oKCpYoSPFvYtI9B4jaDu_0kzz55Y",
+        "expires": "2026-02-21T19:30:23.000Z",
         "domain": "linkedin.com",
         "path": "/",
         "secure": true,
         "httpOnly": true,
         "hostOnly": false,
-        "creation": "2026-02-20T21:11:32.037Z",
-        "lastAccessed": "2026-02-20T21:11:43.490Z"
-      },
-      {
-        "key": "bscookie",
-        "value": "\"v=1&202602202111337eb1d22c-a3bd-4e45-8e6c-15ddc10498a1AQHacDXqyeZPTvJRodMzYURhsXiWYdn0\"",
-        "expires": "2027-02-20T21:11:31.000Z",
-        "domain": "www.linkedin.com",
-        "path": "/",
-        "secure": true,
-        "httpOnly": true,
-        "hostOnly": false,
-        "creation": "2026-02-20T21:11:32.037Z",
-        "lastAccessed": "2026-02-20T21:11:43.490Z"
+        "creation": "2026-02-21T19:00:23.704Z",
+        "lastAccessed": "2026-02-21T19:00:37.005Z"
       }
     ]
   },
