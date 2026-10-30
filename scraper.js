@@ -13,6 +13,10 @@ const {
     getOrCreateProfile
 } = require('./antidetect');
 
+// Per-site URL rewriting + engine hints. Data-driven and generic —
+// see site_adapters.js to teach the scraper a new site.
+const { rewriteUrl, getScrapeHints, getLinkTransformer } = require('./site_adapters');
+
 // ── XHR Replay ────────────────────────────────────────────────────────────────
 // These functions replay captured browser API calls directly using Node's
 // built-in https — no Puppeteer, no browser startup cost.
@@ -429,27 +433,10 @@ const port = process.env.PORT || 3000;
 const host = '0.0.0.0';
 
 // ── Proxy Configuration ────────────────────────────────────────────────────
-// NOTE: getProxy() builds a proxy URL from env vars, but it is not yet wired
-// into Puppeteer's launch args. To activate it, pass the result as:
-//   args: [`--proxy-server=${getProxy()}`]
-// in antidetect.js's puppeteer.launch() call.
-const PROXY_CONFIG = {
-    enabled: process.env.USE_PROXY === 'true',
-    url: process.env.PROXY_URL || null,
-    pool: process.env.PROXY_POOL ? process.env.PROXY_POOL.split(',').map(p => p.trim()) : [],
-    currentIndex: 0
-};
-
-function getProxy() {
-    if (!PROXY_CONFIG.enabled) return null;
-    if (PROXY_CONFIG.url) return PROXY_CONFIG.url;
-    if (PROXY_CONFIG.pool.length > 0) {
-        const proxy = PROXY_CONFIG.pool[PROXY_CONFIG.currentIndex];
-        PROXY_CONFIG.currentIndex = (PROXY_CONFIG.currentIndex + 1) % PROXY_CONFIG.pool.length;
-        return proxy;
-    }
-    return null;
-}
+// Proxy support now lives in antidetect.js (getProxy + page.authenticate),
+// which is where browsers are launched. Configure it via env vars:
+//   USE_PROXY=true  PROXY_URL=http://user:pass@host:port
+//   (or PROXY_POOL=http://a,http://b for random rotation)
 
 // ── Request Router ─────────────────────────────────────────────────────────
 const server = http.createServer(function (req, res) {
@@ -501,6 +488,21 @@ server.listen(port, host, (error) => {
         console.log('Environment: ' + (process.env.PORT ? 'Production (Render)' : 'Local Development'));
         if (!process.env.PORT) console.log(`Open http://localhost:${port} in your browser`);
     }
+});
+
+// ── Crash guards ─────────────────────────────────────────────────────────────
+// A single bad scrape must never take the whole server down. On Node 15+ an
+// unhandled promise rejection terminates the process by default — and Puppeteer
+// is a rich source of them (e.g. a browser op that rejects AFTER the 60s
+// Promise.race timeout already "won", so nothing is awaiting it any more).
+// We log and keep serving instead of exiting. Individual requests are already
+// isolated behind their own try/catch, so staying alive is safe here.
+process.on('unhandledRejection', (reason) => {
+    console.error('[GUARD] Unhandled promise rejection (server kept alive):',
+        reason && reason.message ? reason.message : reason);
+});
+process.on('uncaughtException', (err) => {
+    console.error('[GUARD] Uncaught exception (server kept alive):', err && err.message ? err.message : err);
 });
 
 // ── Cache Handler ──────────────────────────────────────────────────────────
@@ -604,10 +606,12 @@ async function analyzeContent(req, res) {
     }
 
     const userKeywords = keywordsParam.toLowerCase().split(',').map(s => s.trim());
-    console.log('[ANALYZE] Analyzing content:', url);
+    const { url: scrapeUrl } = rewriteUrl(url);
+    const hints = getScrapeHints(scrapeUrl);
+    console.log('[ANALYZE] Analyzing content:', scrapeUrl);
 
     try {
-        const result = await scrapeEnhanced(url, { useProfile: true, retries: 1 });
+        const result = await scrapeEnhanced(scrapeUrl, { useProfile: true, retries: 1, hints });
         const $ = cheerio.load(result.html);
         const pageText = $('body').text().toLowerCase();
         const og = extractOpenGraphData($);
@@ -822,9 +826,18 @@ async function scrapeWebsite(req, res) {
     console.log('Starting scraper...');
 
     const params      = new URL(req.url, getBaseUrl(req)).searchParams;
-    const url         = params.get('url') || 'https://en.wikipedia.org/wiki/Special:Random';
+    const rawUrl      = params.get('url') || 'https://en.wikipedia.org/wiki/Special:Random';
     const bypassCache = params.get('nocache') === 'true';
     const maxPages    = Math.max(1, Math.min(parseInt(params.get('pages') || '10', 10), 50));
+
+    // ── Per-site URL rewrite ────────────────────────────────────────────────
+    // Rewrite the pasted URL into the form that returns the best results for
+    // this site (recency sort, larger page size, a server-rendered API
+    // endpoint instead of a JS app, …). Falls back to the original on any
+    // error. `hints` tunes how patient the browser engine is for this site.
+    const { url, adapter, changed: urlRewritten } = rewriteUrl(rawUrl);
+    const hints = getScrapeHints(url);
+    if (adapter) console.log(`[ADAPTER] Matched "${adapter}"${urlRewritten ? ' (URL rewritten)' : ''}`);
 
     // ── Cache check ────────────────────────────────────────────────────────
     if (!bypassCache) {
@@ -864,7 +877,7 @@ async function scrapeWebsite(req, res) {
             // launch in the DOM fallback path.  XHR replay (Tier 2) then acts
             // as a bonus — it adds any API-only links on top of what DOM found.
             const { pages: firstPages, capturedRequests } = await scrapeMultiPage(url, {
-                useProfile: true, retries: 2, maxPages, refererUrl,
+                useProfile: true, retries: 2, maxPages, refererUrl, hints,
             });
 
             console.log(`[TIMING] Tier 1 done: ${_elapsed()}`);
@@ -916,7 +929,8 @@ async function scrapeWebsite(req, res) {
             // Fire all page requests simultaneously — ~300ms total vs ~3s/page.
             // Only applies when a replayable content request was captured AND
             // pages 2+ actually return new links. Falls through to DOM nav otherwise.
-            const contentReq = findContentRequest(capturedRequests, finalUrl);
+            const contentReq = hints.forceDom ? null : findContentRequest(capturedRequests, finalUrl);
+            if (hints.forceDom) console.log('[XHR] Skipping API replay — adapter set forceDom');
             if (contentReq) {
                 const page1XhrLinks = extractLinksFromJson(contentReq.responseJson, finalUrl);
                 const fp1 = new Set(page1XhrLinks.map(l => {
@@ -991,7 +1005,20 @@ async function scrapeWebsite(req, res) {
 
         console.log(`Total links collected: ${allLinks.length}`);
 
-        let externalLinks = deduplicateLinks(allLinks);
+        // Per-site link transform (e.g. unwrap DuckDuckGo redirect links to
+        // their real destinations). Runs before dedup so unwrapped duplicates
+        // collapse; a null result drops the link.
+        const transformLink = getLinkTransformer(url);
+        let workingLinks = allLinks;
+        if (transformLink) {
+            const before = workingLinks.length;
+            workingLinks = workingLinks
+                .map(l => { const t = transformLink(l.url); return t ? { ...l, url: t } : null; })
+                .filter(Boolean);
+            console.log(`[ADAPTER] Link transform: ${before} → ${workingLinks.length} (unwrapped/filtered)`);
+        }
+
+        let externalLinks = deduplicateLinks(workingLinks);
 
         const beforeFilter = externalLinks.length;
         externalLinks = filterUnwantedLinks(externalLinks);
@@ -1010,13 +1037,16 @@ async function scrapeWebsite(req, res) {
             title: pageTitle, sourceUrl: finalUrl, externalLinks, categories,
             stats: {
                 external: externalLinks.length, categories: categories.length,
-                duplicatesRemoved: allLinks.length - beforeFilter, resourcesFiltered,
+                duplicatesRemoved: workingLinks.length - beforeFilter, resourcesFiltered,
                 newLinks: trulyNewLinks.length, unchangedLinks: externalLinks.length - trulyNewLinks.length,
                 domPages: domPagesScraped,
                 ...(xhrPagesScraped.length > 0 && { xhrPages: xhrPagesScraped.length }),
             },
             cache: { newLinks: trulyNewLinks.length, totalSeen: seenLinks.size },
-            method, timestamp: new Date()
+            method, timestamp: new Date(),
+            // Tells the UI which site adapter fired and whether the pasted URL
+            // was rewritten to a better-results form before scraping.
+            adapter: adapter ? { name: adapter, urlRewritten, requestedUrl: rawUrl, scrapedUrl: url } : null
         };
 
         cacheSet(finalUrl, responseData);

@@ -37,6 +37,53 @@ try {
     }
 }
 
+// ── Proxy support ───────────────────────────────────────────────────────────
+// The single biggest lever for sites that block by IP reputation (Costco,
+// Amazon, eBay, most grocery chains). When USE_PROXY=true, every browser we
+// launch routes through a residential/rotating proxy, so the target sees a
+// clean residential IP instead of a datacenter one. Config via env:
+//   USE_PROXY=true
+//   PROXY_URL=http://user:pass@host:port      (single proxy)
+//   PROXY_POOL=http://a:1,http://b:2,...       (rotated at random)
+// Returns { server, username, password } for the chosen proxy, or null when
+// disabled/unset. `server` is credential-free (scheme://host:port) because
+// Chrome's --proxy-server ignores inline user:pass — those go through
+// page.authenticate() instead. username/password are null when not supplied.
+function getProxy() {
+    if (process.env.USE_PROXY !== 'true') return null;
+    let raw = process.env.PROXY_URL;
+    if (!raw) {
+        const pool = (process.env.PROXY_POOL || '')
+            .split(',').map(s => s.trim()).filter(Boolean);
+        if (!pool.length) return null;
+        raw = pool[Math.floor(Math.random() * pool.length)];
+    }
+    try {
+        // Ensure a scheme so URL() can parse host:port-only values.
+        const u = new URL(/^\w+:\/\//.test(raw) ? raw : `http://${raw}`);
+        return {
+            server: `${u.protocol}//${u.host}`,
+            username: u.username ? decodeURIComponent(u.username) : null,
+            password: u.password ? decodeURIComponent(u.password) : null,
+        };
+    } catch {
+        return { server: raw, username: null, password: null };
+    }
+}
+
+// Base Chrome launch flags shared by both scrapers. A proxy flag is appended
+// per-launch (it may rotate), so it is NOT baked in here.
+const BASE_LAUNCH_ARGS = [
+    '--no-sandbox', '--disable-setuid-sandbox',
+    '--disable-dev-shm-usage', '--no-first-run', '--no-default-browser-check',
+    '--lang=en-US', '--disable-extensions', '--mute-audio',
+    '--disable-gpu', '--disable-software-rasterizer',
+    '--disable-blink-features=AutomationControlled',
+    '--disable-background-timer-throttling',
+    '--disable-backgrounding-occluded-windows',
+    '--disable-renderer-backgrounding',
+];
+
 // ── Cookie Jar ────────────────────────────────────────────────────────────────
 const COOKIE_FILE = './cookie_store.json';
 let cookieJars = {};
@@ -554,9 +601,13 @@ function cleanUrl(url) {
 //      exits as soon as content is done, not after a fixed wait.
 //      Max wall time capped at 4s so a persistently-updating page never stalls.
 //
-async function waitForJSContent(page, fastMode = false) {
+async function waitForJSContent(page, fastMode = false, hints = {}) {
     // fastMode = true for pages 2+ where the session is warm and XHR is faster.
     // Reduces worst-case wait from ~11s to ~5s without losing content.
+    // hints (from site_adapters.js) let a specific site ask for more patience:
+    //   waitForSelector — wait for a real content element before settling
+    //   infiniteScroll  — repeatedly scroll to load lazy result cards
+    //   extraWaitMs     — extra quiet time after the DOM settles
     const idleTime    = fastMode ? 300  : 500;
     const idleTimeout = fastMode ? 1000 : 3000;
     const maxWait     = fastMode ? 4000 : 12000;  // 12s for page 1 — covers slow SPA first-paint
@@ -567,11 +618,31 @@ async function waitForJSContent(page, fastMode = false) {
         await page.waitForNetworkIdle({ idleTime, timeout: idleTimeout }).catch(() => {});
     }
 
+    // Step 1b: if the adapter named a content selector, wait for it to appear.
+    // This is the strongest "is the real content here yet?" signal available —
+    // far better than counting anchors, which a nav bar satisfies prematurely.
+    if (hints.waitForSelector) {
+        try {
+            await page.waitForSelector(hints.waitForSelector, {
+                visible: true, timeout: fastMode ? 4000 : 10000,
+            });
+            console.log(`[WAIT] Content selector appeared: ${hints.waitForSelector}`);
+        } catch {
+            console.log(`[WAIT] Content selector not found in time: ${hints.waitForSelector}`);
+        }
+    }
+
     // Step 2: progressive scroll — steps through the full page height so every
     // Intersection Observer threshold is crossed, exactly as a real browser would.
     // This triggers lazy product cards, deferred nav sections, and any element
     // gated behind an IO callback.
-    await page.evaluate(async () => {
+    //
+    // When hints.infiniteScroll is set, we don't stop at one pass: we keep
+    // scrolling to the bottom and waiting for the page to grow, up to
+    // maxScrollRounds times or until the height stops increasing. This is the
+    // generic mechanism behind "load more result cards" on infinite-scroll
+    // sites — no per-site selector needed.
+    const doScrollPass = () => page.evaluate(async () => {
         await new Promise(resolve => {
             const totalHeight = document.body.scrollHeight;
             const stepSize   = Math.max(200, Math.floor(totalHeight / 10));
@@ -584,14 +655,33 @@ async function waitForJSContent(page, fastMode = false) {
                 if (scrolled < totalHeight) {
                     setTimeout(step, 25);
                 } else {
-                    window.scrollTo({ top: 0, behavior: 'instant' });
                     resolve();
                 }
             };
             step();
         });
         window.dispatchEvent(new Event('resize'));
-    }).catch(() => {});
+        return document.body.scrollHeight;
+    }).catch(() => 0);
+
+    if (hints.infiniteScroll) {
+        const rounds = Math.max(1, hints.maxScrollRounds || 8);
+        let lastHeight = 0;
+        for (let i = 0; i < rounds; i++) {
+            const h = await doScrollPass();
+            if (typeof page.waitForNetworkIdle === 'function') {
+                await page.waitForNetworkIdle({ idleTime: 400, timeout: 2500 }).catch(() => {});
+            } else {
+                await new Promise(r => setTimeout(r, 500));
+            }
+            if (h <= lastHeight) { console.log(`[WAIT] Infinite scroll settled after ${i + 1} round(s)`); break; }
+            lastHeight = h;
+        }
+        await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' })).catch(() => {});
+    } else {
+        await doScrollPass();
+        await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' })).catch(() => {});
+    }
 
     // Step 3: Combined DOM + network stability.
     //
@@ -664,6 +754,12 @@ async function waitForJSContent(page, fastMode = false) {
         checkStable();
     }), maxWait, quietAfter).catch(() => 'error');
 
+    // Optional per-site settle time for results that trickle in after the
+    // first render burst (adapters set this for slow, XHR-driven grids).
+    if (hints.extraWaitMs > 0) {
+        await new Promise(r => setTimeout(r, hints.extraWaitMs));
+    }
+
     const linkCount = await page.evaluate(() => document.querySelectorAll('a').length).catch(() => 0);
     console.log(`[WAIT] DOM ${stable} — ${linkCount} links`);
 }
@@ -713,17 +809,20 @@ async function savePageCookies(page, url) {
 // - Scripts: frameworks need all bundles to render navigation
 // - XHR/fetch: session validation and content hydration happen here
 // - CSS/fonts: some frameworks stall on document.fonts.ready before rendering
-async function blockHeavyResources(page) {
+async function blockHeavyResources(page, { loadImages = false } = {}) {
     await page.setRequestInterception(true);
     page.on('request', (req) => {
-        if (['image', 'media'].includes(req.resourceType())) req.abort();
+        // A few sites gate rendering on image load; an adapter can set
+        // loadImages to let images (but never other media) through.
+        const type = req.resourceType();
+        if (type === 'media' || (type === 'image' && !loadImages)) req.abort();
         else req.continue();
     });
 }
 
 // ── Main Enhanced Scraper ─────────────────────────────────────────────────────
 async function scrapeEnhanced(url, options = {}) {
-    const { useProfile = true, retries = 2, fastMode = false } = options;
+    const { useProfile = true, retries = 2, fastMode = false, hints = {} } = options;
 
     if (!puppeteer) throw new Error('Puppeteer not available — run: npm install puppeteer-extra puppeteer-extra-plugin-stealth');
 
@@ -738,31 +837,21 @@ async function scrapeEnhanced(url, options = {}) {
         let browser;
 
         try {
+            const proxy = getProxy();
+            if (proxy) console.log(`[ENHANCED] Using proxy: ${proxy.server}${proxy.username ? ' (auth)' : ''}`);
             browser = await puppeteer.launch({
                 headless: 'new',
                 args: [
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
+                    ...BASE_LAUNCH_ARGS,
                     `--window-size=${profile.screenWidth},${profile.screenHeight}`,
-                    '--disable-dev-shm-usage',
-                    '--no-first-run',
-                    '--no-default-browser-check',
-                    '--lang=en-US',
-                    '--disable-extensions',
-                    '--mute-audio',
-                    '--disable-gpu',
-                    '--disable-software-rasterizer',
-                    // Prevents Chrome from exposing the automation flag even after
-                    // the stealth script patches navigator.webdriver.
-                    '--disable-blink-features=AutomationControlled',
-                    // Prevent Chrome from throttling JS timers in headless (background) mode
-                    '--disable-background-timer-throttling',
-                    '--disable-backgrounding-occluded-windows',
-                    '--disable-renderer-backgrounding',
+                    ...(proxy ? [`--proxy-server=${proxy.server}`] : []),
                 ]
             });
 
             const page = await browser.newPage();
+            if (proxy && proxy.username) {
+                await page.authenticate({ username: proxy.username, password: proxy.password || '' });
+            }
 
             await page.setViewport({
                 width: profile.screenWidth,
@@ -789,7 +878,7 @@ async function scrapeEnhanced(url, options = {}) {
                 'sec-ch-ua-platform': '"Windows"',
             });
 
-            await blockHeavyResources(page);
+            await blockHeavyResources(page, { loadImages: hints.loadImages });
 
             const cleanedUrl = cleanUrl(url);
             await restoreCookiesToPage(page, cleanedUrl);
@@ -949,7 +1038,7 @@ async function scrapeEnhanced(url, options = {}) {
             }
 
             // ── Wait for JS-rendered content ───────────────────────────────
-            await waitForJSContent(page, fastMode);
+            await waitForJSContent(page, fastMode, hints);
 
             // Give any in-flight CDP body reads a moment to complete
             await new Promise(r => setTimeout(r, 300));
@@ -1113,6 +1202,7 @@ async function scrapeMultiPage(url, options = {}) {
         maxPages    = 10,
         maxDomPages = maxPages,   // limit DOM navigation; defaults to maxPages
         refererUrl: optReferer = null,
+        hints       = {},         // per-site engine knobs (see site_adapters.js)
     } = options;
 
     if (!puppeteer) throw new Error('Puppeteer not available');
@@ -1128,22 +1218,21 @@ async function scrapeMultiPage(url, options = {}) {
         let browser;
 
         try {
+            const proxy = getProxy();
+            if (proxy) console.log(`[MULTI] Using proxy: ${proxy.server}${proxy.username ? ' (auth)' : ''}`);
             browser = await puppeteer.launch({
                 headless: 'new',
                 args: [
-                    '--no-sandbox', '--disable-setuid-sandbox',
+                    ...BASE_LAUNCH_ARGS,
                     `--window-size=${profile.screenWidth},${profile.screenHeight}`,
-                    '--disable-dev-shm-usage', '--no-first-run', '--no-default-browser-check',
-                    '--lang=en-US', '--disable-extensions', '--mute-audio',
-                    '--disable-gpu', '--disable-software-rasterizer',
-                    '--disable-blink-features=AutomationControlled',
-                    '--disable-background-timer-throttling',
-                    '--disable-backgrounding-occluded-windows',
-                    '--disable-renderer-backgrounding',
+                    ...(proxy ? [`--proxy-server=${proxy.server}`] : []),
                 ]
             });
 
             const page = await browser.newPage();
+            if (proxy && proxy.username) {
+                await page.authenticate({ username: proxy.username, password: proxy.password || '' });
+            }
 
             await page.setViewport({
                 width: profile.screenWidth, height: profile.screenHeight,
@@ -1165,7 +1254,7 @@ async function scrapeMultiPage(url, options = {}) {
                 'sec-ch-ua-platform': '"Windows"',
             });
 
-            await blockHeavyResources(page);
+            await blockHeavyResources(page, { loadImages: hints.loadImages });
 
             const cleanedUrl = cleanUrl(url);
             await restoreCookiesToPage(page, cleanedUrl);
@@ -1302,11 +1391,15 @@ async function scrapeMultiPage(url, options = {}) {
             const earlyLinks = await page.evaluate(
                 () => document.querySelectorAll('a[href]').length
             ).catch(() => 0);
-            const isShell = earlyHtml.length < 30000 && earlyLinks < 3;
+            // A site adapter can raise minLinks so a content-heavy result page
+            // that renders only a nav bar on first paint is treated as a shell
+            // and gets the warm-navigation retry.
+            const shellLinkFloor = Math.max(3, hints.minLinks || 3);
+            const isShell = earlyHtml.length < 30000 && earlyLinks < shellLinkFloor;
 
             if (!isShell) {
-                // Normal page — run full stability wait
-                await waitForJSContent(page, false);
+                // Normal page — run full stability wait (with per-site hints)
+                await waitForJSContent(page, false, hints);
             }
             // Shell pages fall through to the warm navigation block, saving up to 12s.
 
@@ -1358,7 +1451,7 @@ async function scrapeMultiPage(url, options = {}) {
                     if (typeof page.waitForNetworkIdle === 'function') {
                         await page.waitForNetworkIdle({ idleTime: 500, timeout: 10000 }).catch(() => {});
                     }
-                    await waitForJSContent(page, false);
+                    await waitForJSContent(page, false, hints);
 
                     const warmLinks = await page.evaluate(
                         () => document.querySelectorAll('a[href]').length
@@ -1369,6 +1462,52 @@ async function scrapeMultiPage(url, options = {}) {
 
             const pages = [{ html: await page.content(), finalUrl: page.url() }];
             console.log(`[MULTI] Page 1: ${pages[0].html.length} chars | ${(pages[0].html.match(/<a[\s>]/gi) || []).length} anchors`);
+
+            // ── Pages 2-N (Option A): URL-param pagination ─────────────────
+            // When an adapter provides hints.pageParam, we page by loading the
+            // same URL with that query param incremented (start=25, page=2, …)
+            // rather than hunting for a "next" button. This is the only way to
+            // paginate server-rendered API endpoints (e.g. LinkedIn's jobs-guest
+            // feed) where the page itself IS the result payload.
+            if (hints.pageParam) {
+                const { pageParam, pageStep = 25, pageStart = 0 } = hints;
+                let prevAnchorSet = new Set(
+                    (await page.evaluate(() =>
+                        [...document.querySelectorAll('a[href]')].map(a => a.href)
+                    ).catch(() => []))
+                );
+
+                for (let pNum = 2; pNum <= maxDomPages; pNum++) {
+                    const pageUrl = new URL(page.url());
+                    pageUrl.searchParams.set(pageParam, String(pageStart + (pNum - 1) * pageStep));
+                    console.log(`[MULTI] Page ${pNum} (url-param): ${pageParam}=${pageUrl.searchParams.get(pageParam)}`);
+
+                    await page.goto(pageUrl.toString(), { waitUntil: 'load', timeout: 20000, referer: page.url() })
+                        .catch(e => console.log(`[MULTI] goto page ${pNum} error: ${e.message}`));
+                    await waitForJSContent(page, true, { ...hints, extraWaitMs: 0 });
+
+                    const html    = await page.content();
+                    const anchors = await page.evaluate(() =>
+                        [...document.querySelectorAll('a[href]')].map(a => a.href)).catch(() => []);
+                    const genuinelyNew = anchors.filter(h => !prevAnchorSet.has(h)).length;
+
+                    // Stop when a page brings essentially nothing new — end of results.
+                    if (genuinelyNew < 3) {
+                        console.log(`[MULTI] Page ${pNum}: only ${genuinelyNew} new links — end of results`);
+                        break;
+                    }
+                    pages.push({ html, finalUrl: page.url() });
+                    anchors.forEach(h => prevAnchorSet.add(h));
+                    console.log(`[MULTI] Page ${pNum}: +${genuinelyNew} new links`);
+                }
+
+                await new Promise(r => setTimeout(r, 800));
+                if (cdpClient) await cdpClient.detach().catch(() => {});
+                await savePageCookies(page, cleanedUrl);
+                await browser.close();
+                console.log(`[MULTI] Done (url-param): ${pages.length} page(s), ${capturedRequests.length} XHR captured`);
+                return { pages, capturedRequests };
+            }
 
             // ── Pages 2-N: DOM navigation ──────────────────────────────────
             let currentPageNum = 1;
@@ -1409,8 +1548,10 @@ async function scrapeMultiPage(url, options = {}) {
                     ]);
                 }
 
-                // Fast settle for pages 2+ — session is warm, XHR is faster
-                await waitForJSContent(page, true);
+                // Fast settle for pages 2+ — session is warm, XHR is faster.
+                // Keep selector/scroll hints, but drop the extra dwell time so
+                // later pages stay quick.
+                await waitForJSContent(page, true, { ...hints, extraWaitMs: 0 });
 
                 const newUrl   = page.url();
                 const newHtml  = await page.content();

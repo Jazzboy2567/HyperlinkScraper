@@ -1,0 +1,12 @@
+# Runtime logs (created by the server / keepalive watchdog)
+server.log
+server.err.log
+keepalive.log
+
+# Dependencies
+node_modules/
+
+# Runtime/private data — never publish (cookies, search history, device profiles)
+cookie_store.json
+seen_links.json
+browser_profiles.json
