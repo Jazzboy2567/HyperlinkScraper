@@ -1477,13 +1477,15 @@ async function scrapeMultiPage(url, options = {}) {
                     ).catch(() => []))
                 );
 
+                let lowYieldStreak = 0;
                 for (let pNum = 2; pNum <= maxDomPages; pNum++) {
                     const pageUrl = new URL(page.url());
                     pageUrl.searchParams.set(pageParam, String(pageStart + (pNum - 1) * pageStep));
                     console.log(`[MULTI] Page ${pNum} (url-param): ${pageParam}=${pageUrl.searchParams.get(pageParam)}`);
 
+                    let gotoOk = true;
                     await page.goto(pageUrl.toString(), { waitUntil: 'load', timeout: 20000, referer: page.url() })
-                        .catch(e => console.log(`[MULTI] goto page ${pNum} error: ${e.message}`));
+                        .catch(e => { gotoOk = false; console.log(`[MULTI] goto page ${pNum} error: ${e.message}`); });
                     await waitForJSContent(page, true, { ...hints, extraWaitMs: 0 });
 
                     const html    = await page.content();
@@ -1491,11 +1493,25 @@ async function scrapeMultiPage(url, options = {}) {
                         [...document.querySelectorAll('a[href]')].map(a => a.href)).catch(() => []);
                     const genuinelyNew = anchors.filter(h => !prevAnchorSet.has(h)).length;
 
-                    // Stop when a page brings essentially nothing new — end of results.
+                    // A page bringing nothing new is usually the end of results — but a
+                    // load error or a transient block also momentarily yields nothing new
+                    // (the goto above is caught and we fall through to STALE content). Don't
+                    // treat one bad page as the end: tolerate it and try the next offset,
+                    // stopping only after two low-yield pages in a row. Breaking on the
+                    // first was the main cause of a run returning a thin slice when
+                    // LinkedIn throttled a page mid-pagination.
                     if (genuinelyNew < 3) {
-                        console.log(`[MULTI] Page ${pNum}: only ${genuinelyNew} new links — end of results`);
-                        break;
+                        lowYieldStreak++;
+                        const why = gotoOk ? '' : ' (load error)';
+                        if (lowYieldStreak >= 2) {
+                            console.log(`[MULTI] Page ${pNum}: only ${genuinelyNew} new links${why} — end of results`);
+                            break;
+                        }
+                        console.log(`[MULTI] Page ${pNum}: only ${genuinelyNew} new links${why} — tolerating, trying next offset`);
+                        anchors.forEach(h => prevAnchorSet.add(h));
+                        continue;
                     }
+                    lowYieldStreak = 0;
                     pages.push({ html, finalUrl: page.url() });
                     anchors.forEach(h => prevAnchorSet.add(h));
                     console.log(`[MULTI] Page ${pNum}: +${genuinelyNew} new links`);
