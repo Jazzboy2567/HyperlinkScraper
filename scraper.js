@@ -957,11 +957,17 @@ async function scrapeWebsite(req, res) {
                 );
                 console.log(`[TIMING] Tier 2 XHR parallel replay: ${Date.now() - _tXHR}ms (elapsed: ${_elapsed()})`);
 
+                // Pages 2..N were all fetched in parallel, so one empty or duplicate
+                // page means THAT page was throttled/exhausted — not that every later
+                // page is. Skip it and keep aggregating. Breaking here was the main
+                // cause of a run returning a thin slice: when LinkedIn rate-limited the
+                // burst and an early page came back empty, every later page that DID
+                // return jobs was discarded.
                 for (const { pNum, links } of xhrResults) {
-                    if (!links.length) { console.log(`[XHR] Page ${pNum} empty — stopping`); break; }
+                    if (!links.length) { console.log(`[XHR] Page ${pNum} empty — skipping`); continue; }
                     const fpN     = new Set(links.map(l => { try { return new URL(l.url).pathname; } catch { return l.url; } }));
                     const overlap = [...fpN].filter(p => fp1.has(p)).length;
-                    if (fpN.size > 0 && overlap / fpN.size > 0.8) { console.log(`[XHR] Page ${pNum} duplicate — stopping`); break; }
+                    if (fpN.size > 0 && overlap / fpN.size > 0.8) { console.log(`[XHR] Page ${pNum} duplicate — skipping`); continue; }
                     let added = 0;
                     for (const l of links) {
                         if (!seenHrefs.has(l.url)) { seenHrefs.add(l.url); allLinks.push(l); added++; }
