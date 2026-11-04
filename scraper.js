@@ -876,7 +876,7 @@ async function scrapeWebsite(req, res) {
             // inspection) and full pagination.  This avoids a second browser
             // launch in the DOM fallback path.  XHR replay (Tier 2) then acts
             // as a bonus — it adds any API-only links on top of what DOM found.
-            const { pages: firstPages, capturedRequests } = await scrapeMultiPage(url, {
+            const { pages: firstPages, capturedRequests, pageStats = {} } = await scrapeMultiPage(url, {
                 useProfile: true, retries: 2, maxPages, refererUrl, hints,
             });
 
@@ -922,7 +922,9 @@ async function scrapeWebsite(req, res) {
             const xhrPagesScraped = [];
 
             if (maxPages <= 1) {
-                return { allLinks, pageTitle, finalUrl, method, domPagesScraped, xhrPagesScraped };
+                const coverage = { engine: 'dom', pagesRequested: 1, pagesWithData: 1,
+                    emptyPages: 0, duplicatePages: 0, holes: 0, loadErrors: 0, degraded: false };
+                return { allLinks, pageTitle, finalUrl, method, domPagesScraped, xhrPagesScraped, coverage };
             }
 
             // ── Tier 2: parallel XHR API replay ───────────────────────────
@@ -963,11 +965,13 @@ async function scrapeWebsite(req, res) {
                 // cause of a run returning a thin slice: when LinkedIn rate-limited the
                 // burst and an early page came back empty, every later page that DID
                 // return jobs was discarded.
+                const emptyPageNums = [];
+                const dupPageNums   = [];
                 for (const { pNum, links } of xhrResults) {
-                    if (!links.length) { console.log(`[XHR] Page ${pNum} empty — skipping`); continue; }
+                    if (!links.length) { console.log(`[XHR] Page ${pNum} empty — skipping`); emptyPageNums.push(pNum); continue; }
                     const fpN     = new Set(links.map(l => { try { return new URL(l.url).pathname; } catch { return l.url; } }));
                     const overlap = [...fpN].filter(p => fp1.has(p)).length;
-                    if (fpN.size > 0 && overlap / fpN.size > 0.8) { console.log(`[XHR] Page ${pNum} duplicate — skipping`); continue; }
+                    if (fpN.size > 0 && overlap / fpN.size > 0.8) { console.log(`[XHR] Page ${pNum} duplicate — skipping`); dupPageNums.push(pNum); continue; }
                     let added = 0;
                     for (const l of links) {
                         if (!seenHrefs.has(l.url)) { seenHrefs.add(l.url); allLinks.push(l); added++; }
@@ -981,8 +985,20 @@ async function scrapeWebsite(req, res) {
                 // were duplicates/empty), fall through to use the DOM pages already
                 // captured in Tier 1 — no second browser launch needed.
                 if (xhrPagesScraped.length > 0) {
-                    console.log(`[XHR] Parallel replay done — ${xhrPagesScraped.length + 1} API pages`);
-                    return { allLinks, pageTitle, finalUrl, method, domPagesScraped, xhrPagesScraped };
+                    const dataPages = xhrPagesScraped.map(p => p.page);
+                    const lastData  = dataPages.length ? Math.max(...dataPages) : 1;
+                    // An empty page numerically BEFORE the last page that returned jobs is a
+                    // throttle "hole" — a page the burst got rate-limited on — not the end of
+                    // results. That's the signature of a degraded run that still produced links.
+                    const holes = emptyPageNums.filter(n => n < lastData).length;
+                    const coverage = {
+                        engine: 'xhr', pagesRequested: maxPages, pagesWithData: xhrPagesScraped.length + 1,
+                        emptyPages: emptyPageNums.length, duplicatePages: dupPageNums.length,
+                        holes, loadErrors: 0, degraded: holes > 0,
+                    };
+                    console.log(`[XHR] Parallel replay done — ${xhrPagesScraped.length + 1} API pages` +
+                                (holes ? ` — ⚠ ${holes} throttled page(s) mid-run (degraded)` : ''));
+                    return { allLinks, pageTitle, finalUrl, method, domPagesScraped, xhrPagesScraped, coverage };
                 }
                 console.log('[XHR] No pages 2+ from API replay — using DOM pages from Tier 1');
             }
@@ -1002,11 +1018,17 @@ async function scrapeWebsite(req, res) {
                 }
             }
             domPagesScraped = firstPages.length;
+            const loadErrors = pageStats.loadErrors || 0;
+            const coverage = {
+                engine: 'dom', pagesRequested: maxPages, pagesWithData: domPagesScraped,
+                emptyPages: 0, duplicatePages: 0, holes: 0,
+                loadErrors, lowYield: pageStats.lowYield || 0, degraded: loadErrors > 0,
+            };
             console.log(`[TIMING] doScrape total: ${_elapsed()}`);
-            return { allLinks, pageTitle, finalUrl, method, domPagesScraped, xhrPagesScraped };
+            return { allLinks, pageTitle, finalUrl, method, domPagesScraped, xhrPagesScraped, coverage };
         };
 
-        const { allLinks, pageTitle, finalUrl, method, domPagesScraped, xhrPagesScraped }
+        const { allLinks, pageTitle, finalUrl, method, domPagesScraped, xhrPagesScraped, coverage }
             = await Promise.race([doScrape(), timeoutPromise]);
 
         console.log(`Total links collected: ${allLinks.length}`);
@@ -1047,6 +1069,7 @@ async function scrapeWebsite(req, res) {
                 newLinks: trulyNewLinks.length, unchangedLinks: externalLinks.length - trulyNewLinks.length,
                 domPages: domPagesScraped,
                 ...(xhrPagesScraped.length > 0 && { xhrPages: xhrPagesScraped.length }),
+                ...(coverage && { coverage }),
             },
             cache: { newLinks: trulyNewLinks.length, totalSeen: seenLinks.size },
             method, timestamp: new Date(),

@@ -1463,6 +1463,11 @@ async function scrapeMultiPage(url, options = {}) {
             const pages = [{ html: await page.content(), finalUrl: page.url() }];
             console.log(`[MULTI] Page 1: ${pages[0].html.length} chars | ${(pages[0].html.match(/<a[\s>]/gi) || []).length} anchors`);
 
+            // Coverage telemetry: how many page loads errored (throttle/block) and how
+            // many low-yield pages we tolerated rather than stopped on. Surfaced in the
+            // run's stats.coverage so a degraded scrape is visible, not silent.
+            let loadErrors = 0, lowYield = 0;
+
             // ── Pages 2-N (Option A): URL-param pagination ─────────────────
             // When an adapter provides hints.pageParam, we page by loading the
             // same URL with that query param incremented (start=25, page=2, …)
@@ -1485,7 +1490,7 @@ async function scrapeMultiPage(url, options = {}) {
 
                     let gotoOk = true;
                     await page.goto(pageUrl.toString(), { waitUntil: 'load', timeout: 20000, referer: page.url() })
-                        .catch(e => { gotoOk = false; console.log(`[MULTI] goto page ${pNum} error: ${e.message}`); });
+                        .catch(e => { gotoOk = false; loadErrors++; console.log(`[MULTI] goto page ${pNum} error: ${e.message}`); });
                     await waitForJSContent(page, true, { ...hints, extraWaitMs: 0 });
 
                     const html    = await page.content();
@@ -1507,6 +1512,7 @@ async function scrapeMultiPage(url, options = {}) {
                             console.log(`[MULTI] Page ${pNum}: only ${genuinelyNew} new links${why} — end of results`);
                             break;
                         }
+                        lowYield++;
                         console.log(`[MULTI] Page ${pNum}: only ${genuinelyNew} new links${why} — tolerating, trying next offset`);
                         anchors.forEach(h => prevAnchorSet.add(h));
                         continue;
@@ -1521,8 +1527,9 @@ async function scrapeMultiPage(url, options = {}) {
                 if (cdpClient) await cdpClient.detach().catch(() => {});
                 await savePageCookies(page, cleanedUrl);
                 await browser.close();
-                console.log(`[MULTI] Done (url-param): ${pages.length} page(s), ${capturedRequests.length} XHR captured`);
-                return { pages, capturedRequests };
+                console.log(`[MULTI] Done (url-param): ${pages.length} page(s), ${capturedRequests.length} XHR captured` +
+                            (loadErrors ? ` — ⚠ ${loadErrors} load error(s)` : ''));
+                return { pages, capturedRequests, pageStats: { loadErrors, lowYield } };
             }
 
             // ── Pages 2-N: DOM navigation ──────────────────────────────────
@@ -1551,7 +1558,7 @@ async function scrapeMultiPage(url, options = {}) {
                 if (nextAction.type === 'navigate' && nextAction.url) {
                     const nextUrl = new URL(nextAction.url, page.url()).toString();
                     await page.goto(nextUrl, { waitUntil: 'load', timeout: 20000, referer: page.url() })
-                        .catch(e => console.log(`[MULTI] goto page ${pNum} error: ${e.message}`));
+                        .catch(e => { loadErrors++; console.log(`[MULTI] goto page ${pNum} error: ${e.message}`); });
                 } else {
                     const clicked = await clickNextElement(page, nextAction);
                     if (!clicked) { console.log(`[MULTI] Click failed on page ${pNum} — stopping`); break; }
@@ -1612,8 +1619,9 @@ async function scrapeMultiPage(url, options = {}) {
             await savePageCookies(page, cleanedUrl);
             await browser.close();
 
-            console.log(`[MULTI] Done: ${pages.length} DOM page(s), ${capturedRequests.length} XHR captured`);
-            return { pages, capturedRequests };
+            console.log(`[MULTI] Done: ${pages.length} DOM page(s), ${capturedRequests.length} XHR captured` +
+                        (loadErrors ? ` — ⚠ ${loadErrors} load error(s)` : ''));
+            return { pages, capturedRequests, pageStats: { loadErrors, lowYield } };
 
         } catch (err) {
             if (browser) { try { await browser.close(); } catch {} }
